@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, 
@@ -14,61 +14,57 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from '@/components/ui/use-toast';
+import { getData, updateItem } from '@/lib/data-store';
 
-const leaveRequests = [
-  { 
-    id: '1', 
-    student: 'Arun Prasath', 
-    rollNo: '21CS001', 
-    type: 'Medical', 
-    startDate: '2024-03-20', 
-    endDate: '2024-03-22', 
-    days: 3, 
-    reason: 'Severe fever and doctor advised rest.',
-    status: 'pending',
-    photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=400&fit=crop'
-  },
-  { 
-    id: '2', 
-    student: 'Priya Sharma', 
-    rollNo: '21CS045', 
-    type: 'Family Function', 
-    startDate: '2024-03-25', 
-    endDate: '2024-03-25', 
-    days: 1, 
-    reason: "Sister's wedding engagement ceremony.",
-    status: 'pending',
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'
-  },
-  { 
-    id: '3', 
-    student: 'Karthik Raja', 
-    rollNo: '21CS023', 
-    type: 'On Duty', 
-    startDate: '2024-03-21', 
-    endDate: '2024-03-21', 
-    days: 1, 
-    reason: 'Inter-college symposium at IIT Madras.',
-    status: 'approved',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
-  }
-];
+const LEAVE_REQUESTS_KEY = 'college_portal_leave_requests';
+
+interface LeaveRequest {
+  id: string;
+  student: string;
+  rollNo: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  photo: string;
+}
 
 export default function LeaveApprovals() {
-  const [activeTab, setActiveTab] = React.useState<'pending' | 'history'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const loadRequests = () => {
+    const data = getData<LeaveRequest>(LEAVE_REQUESTS_KEY);
+    setRequests(data);
+    setLoading(false);
+  };
 
   const handleAction = (id: string, action: 'approve' | 'reject') => {
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    updateItem<LeaveRequest>(LEAVE_REQUESTS_KEY, id, { status: newStatus });
+    
     toast({
       title: action === 'approve' ? "Leave Approved" : "Leave Rejected",
       description: `Request ${id} has been ${action}d successfully.`,
       variant: action === 'approve' ? "default" : "destructive",
     });
+    
+    loadRequests();
   };
 
   const filteredRequests = activeTab === 'pending' 
-    ? leaveRequests.filter(r => r.status === 'pending')
-    : leaveRequests.filter(r => r.status !== 'pending');
+    ? requests.filter(r => r.status === 'pending')
+    : requests.filter(r => r.status !== 'pending');
 
+  if (loading) return <div className="p-8 text-center">Loading requests...</div>;
+v
   return (
     <div className="space-y-6">
       <motion.div
@@ -87,7 +83,7 @@ export default function LeaveApprovals() {
             onClick={() => setActiveTab('pending')}
             className="rounded-lg"
           >
-            Pending ({leaveRequests.filter(r => r.status === 'pending').length})
+            Pending ({requests.filter(r => r.status === 'pending').length})
           </Button>
           <Button 
             variant={activeTab === 'history' ? 'default' : 'ghost'} 
