@@ -137,7 +137,7 @@ export function initializeStorage() {
   ];
 
   portalKeys.forEach(key => {
-    const storageKey = key === 'batches' || key === 'classes' || key === 'sections' ? key : `college_portal_${key}`;
+    const storageKey = (key === 'batches' || key === 'classes' || key === 'sections') ? key : `college_portal_${key}`;
     if (!localStorage.getItem(storageKey)) {
       localStorage.setItem(storageKey, JSON.stringify([]));
     }
