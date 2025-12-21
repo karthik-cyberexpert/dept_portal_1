@@ -1,0 +1,225 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Calendar, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  AlertCircle,
+  Plus,
+  ArrowRight,
+  FileText,
+  UserCheck
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+
+export default function LeavePortal() {
+  const [showApply, setShowApply] = useState(false);
+
+  const leaveHistory = [
+    { id: 1, type: "Sick Leave", from: "Oct 10", to: "Oct 12", reason: "Viral fever", status: "approved", approvedBy: "Tutor - Mrs. Anitha" },
+    { id: 2, type: "On Duty", from: "Oct 22", to: "Oct 22", reason: "Workshop at IIT Madras", status: "pending", approvedBy: null },
+    { id: 3, type: "Permission", from: "Oct 15", to: "Oct 15", reason: "Family event", status: "rejected", approvedBy: "HOD - Dr. Rajan" },
+  ];
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved': return <CheckCircle2 className="w-4 h-4 text-success" />;
+      case 'rejected': return <XCircle className="w-4 h-4 text-destructive" />;
+      default: return <Clock className="w-4 h-4 text-warning" />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved': return 'bg-success/10 text-success border-success/20';
+      case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-warning/10 text-warning border-warning/20';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
+        <div>
+          <h1 className="text-3xl font-bold">Leave Portal</h1>
+          <p className="text-muted-foreground">Request leave/OD and track approval status</p>
+        </div>
+        <Button 
+          variant={showApply ? "outline" : "gradient"} 
+          className="rounded-xl shadow-lg shadow-primary/20"
+          onClick={() => setShowApply(!showApply)}
+        >
+          {showApply ? "Cancel Request" : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Apply Leave / OD
+            </>
+          )}
+        </Button>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <AnimatePresence mode="wait">
+          {showApply ? (
+            <motion.div
+              key="apply-form"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="lg:col-span-2 glass-card rounded-2xl p-8 border-primary/20 bg-primary/[0.02]"
+            >
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                New Leave Application
+              </h2>
+              <form className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Type of Request</Label>
+                    <select className="w-full h-11 bg-muted/50 rounded-xl px-4 border-transparent focus:border-primary/20 focus:ring-0 transition-all text-sm font-medium outline-none">
+                      <option>Sick Leave</option>
+                      <option>Casual Leave</option>
+                      <option>On Duty (Academic)</option>
+                      <option>On Duty (ECA)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Emergency Contact</Label>
+                    <Input placeholder="+91 98765 43210" className="h-11 bg-muted/50 border-transparent rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">From Date</Label>
+                    <Input type="date" className="h-11 bg-muted/50 border-transparent rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">To Date</Label>
+                    <Input type="date" className="h-11 bg-muted/50 border-transparent rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Reason for Leave</Label>
+                  <Textarea placeholder="Explain your reason clearly..." className="min-h-[120px] bg-muted/50 border-transparent rounded-xl focus:bg-card transition-all" />
+                </div>
+
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Note: For medical leave exceeding 2 days, you must upload a doctor's certificate. For OD, attach proof of event/invitation.
+                  </p>
+                </div>
+
+                <Button className="w-full h-12 rounded-xl text-lg font-bold shadow-xl shadow-primary/20">
+                  Submit Application
+                </Button>
+              </form>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="stats"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="lg:col-span-1 space-y-6"
+            >
+              <div className="glass-card rounded-2xl p-6 bg-gradient-to-br from-primary/5 to-accent/5">
+                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-6">Leave Balance</h3>
+                <div className="space-y-6">
+                  {[
+                    { label: "Sick Leave", used: 2, total: 10, color: "bg-primary" },
+                    { label: "Casual Leave", used: 3, total: 8, color: "bg-accent" },
+                    { label: "On Duty", used: 5, total: 15, color: "bg-success" },
+                  ].map((item, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <div className="flex justify-between text-sm font-bold">
+                        <span>{item.label}</span>
+                        <span className="text-muted-foreground">{item.used}/{item.total} Days</span>
+                      </div>
+                      <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${item.color} rounded-full transition-all duration-1000`} 
+                          style={{ width: `${(item.used / item.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass-card rounded-2xl p-6">
+                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4">Guidelines</h3>
+                <ul className="space-y-3">
+                  {[
+                    "Apply at least 24 hours in advance.",
+                    "Attend classes until approval is granted.",
+                    "Compulsory attendance for lab sessions.",
+                    "OD requires physical verification of proof."
+                  ].map((text, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <ArrowRight className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+                      {text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className={showApply ? "lg:col-span-1" : "lg:col-span-2"}>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="glass-card rounded-2xl p-6 h-full"
+          >
+            <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-6 px-2">Application History</h3>
+            <div className="space-y-4">
+              {leaveHistory.map((leave, idx) => (
+                <div 
+                  key={leave.id}
+                  className="group p-5 rounded-2xl bg-muted/30 border border-transparent hover:border-primary/10 transition-all"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getStatusBadge(leave.status)}`}>
+                        {getStatusIcon(leave.status)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm tracking-tight">{leave.type}</h4>
+                        <p className="text-xs text-muted-foreground font-medium">{leave.from} - {leave.to}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`rounded-lg font-black uppercase text-[10px] border-0 ${getStatusBadge(leave.status)}`}>
+                      {leave.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                    <p className="text-xs text-muted-foreground font-medium italic">"{leave.reason}"</p>
+                    {leave.approvedBy && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground">
+                        <UserCheck className="w-3 h-3" />
+                        {leave.approvedBy}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}

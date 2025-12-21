@@ -1,0 +1,192 @@
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  Calendar, 
+  User, 
+  MessageSquare,
+  FileText,
+  AlertCircle
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from '@/components/ui/use-toast';
+
+const leaveRequests = [
+  { 
+    id: '1', 
+    student: 'Arun Prasath', 
+    rollNo: '21CS001', 
+    type: 'Medical', 
+    startDate: '2024-03-20', 
+    endDate: '2024-03-22', 
+    days: 3, 
+    reason: 'Severe fever and doctor advised rest.',
+    status: 'pending',
+    photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=400&fit=crop'
+  },
+  { 
+    id: '2', 
+    student: 'Priya Sharma', 
+    rollNo: '21CS045', 
+    type: 'Family Function', 
+    startDate: '2024-03-25', 
+    endDate: '2024-03-25', 
+    days: 1, 
+    reason: "Sister's wedding engagement ceremony.",
+    status: 'pending',
+    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'
+  },
+  { 
+    id: '3', 
+    student: 'Karthik Raja', 
+    rollNo: '21CS023', 
+    type: 'On Duty', 
+    startDate: '2024-03-21', 
+    endDate: '2024-03-21', 
+    days: 1, 
+    reason: 'Inter-college symposium at IIT Madras.',
+    status: 'approved',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
+  }
+];
+
+export default function LeaveApprovals() {
+  const [activeTab, setActiveTab] = React.useState<'pending' | 'history'>('pending');
+
+  const handleAction = (id: string, action: 'approve' | 'reject') => {
+    toast({
+      title: action === 'approve' ? "Leave Approved" : "Leave Rejected",
+      description: `Request ${id} has been ${action}d successfully.`,
+      variant: action === 'approve' ? "default" : "destructive",
+    });
+  };
+
+  const filteredRequests = activeTab === 'pending' 
+    ? leaveRequests.filter(r => r.status === 'pending')
+    : leaveRequests.filter(r => r.status !== 'pending');
+
+  return (
+    <div className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+      >
+        <div>
+          <h1 className="text-3xl font-bold">Leave Portal 🏥</h1>
+          <p className="text-muted-foreground">Manage and approve student leave requests</p>
+        </div>
+        <div className="flex bg-muted p-1 rounded-xl">
+          <Button 
+            variant={activeTab === 'pending' ? 'default' : 'ghost'} 
+            size="sm"
+            onClick={() => setActiveTab('pending')}
+            className="rounded-lg"
+          >
+            Pending ({leaveRequests.filter(r => r.status === 'pending').length})
+          </Button>
+          <Button 
+            variant={activeTab === 'history' ? 'default' : 'ghost'} 
+            size="sm"
+            onClick={() => setActiveTab('history')}
+            className="rounded-lg"
+          >
+            History
+          </Button>
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <AnimatePresence mode="popLayout">
+          {filteredRequests.map((request, index) => (
+            <motion.div
+              key={request.id}
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ delay: index * 0.1 }}
+              className="glass-card rounded-2xl p-6 relative overflow-hidden group"
+            >
+              {request.status === 'approved' && (
+                <div className="absolute top-0 right-0 p-4">
+                  <Badge variant="success" className="rounded-full">Approved</Badge>
+                </div>
+              )}
+              
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex items-start gap-4 flex-1">
+                  <Avatar className="w-14 h-14 border-4 border-primary/10 group-hover:border-primary/30 transition-all">
+                    <AvatarImage src={request.photo} />
+                    <AvatarFallback>{request.student.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      {request.student}
+                      <span className="text-xs font-normal text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
+                        {request.rollNo}
+                      </span>
+                    </h3>
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        {request.startDate} to {request.endDate} ({request.days} days)
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-accent" />
+                        {request.type}
+                      </div>
+                    </div>
+                    <div className="mt-3 p-4 rounded-xl bg-muted/50 border border-border/50 italic text-sm relative">
+                      <MessageSquare className="w-4 h-4 absolute -left-2 -top-2 text-primary opacity-50" />
+                      "{request.reason}"
+                    </div>
+                  </div>
+                </div>
+
+                {request.status === 'pending' && (
+                  <div className="flex lg:flex-col justify-end gap-2 lg:min-w-[140px]">
+                    <Button 
+                      variant="success" 
+                      className="flex-1 lg:w-full"
+                      onClick={() => handleAction(request.id, 'approve')}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Approve
+                    </Button>
+                      <Button 
+                        variant="outline"
+                        className="flex-1 lg:w-full border-destructive/20 text-destructive hover:bg-destructive/10"
+                        onClick={() => handleAction(request.id, 'reject')}
+                      >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Reject
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {filteredRequests.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-20 glass-card rounded-2xl"
+          >
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-10 h-10 text-muted-foreground opacity-50" />
+            </div>
+            <h3 className="text-xl font-bold">No Pending Requests</h3>
+            <p className="text-muted-foreground">You're all caught up! Great job.</p>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
