@@ -86,11 +86,11 @@ const adminLinks: SidebarLink[] = [
   { label: 'Timetable', icon: Calendar, path: '/admin/timetable' },
   { label: 'Approve Marks', icon: ClipboardList, path: '/admin/marks', badge: '8' },
   { label: 'Notes Analytics', icon: BookOpen, path: '/admin/notes' },
-  { label: 'Assignments', icon: FileText, path: '/admin/assignments' },
-  { label: 'Circulars', icon: Bell, path: '/admin/circulars' },
-  { label: 'LMS Management', icon: Trophy, path: '/admin/lms' },
-    { label: 'ECA Analytics', icon: Sparkles, path: '/admin/eca' },
+    { label: 'Assignments', icon: FileText, path: '/admin/assignments' },
+    { label: 'Circulars', icon: Bell, path: '/admin/circulars' },
     { label: 'Leave Approvals', icon: ExternalLink, path: '/admin/leave', badge: '6' },
+    { label: 'LMS Management', icon: Trophy, path: '/admin/lms' },
+    { label: 'ECA Analytics', icon: Sparkles, path: '/admin/eca' },
     { label: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
