@@ -79,28 +79,28 @@ const App = () => (
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
               
-              {/* Student Routes */}
-              <Route
-                path="/student"
-                element={
-                  <ProtectedRoute allowedRoles={['student']}>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<StudentDashboard />} />
-                <Route path="personal" element={<div className="p-4"><h1 className="text-2xl font-bold">Personal Details</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="academic" element={<div className="p-4"><h1 className="text-2xl font-bold">Academic Details</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="timetable" element={<div className="p-4"><h1 className="text-2xl font-bold">Timetable & Syllabus</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="marks" element={<div className="p-4"><h1 className="text-2xl font-bold">Marks & Grades</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="notes" element={<div className="p-4"><h1 className="text-2xl font-bold">Notes & Question Bank</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="assignments" element={<div className="p-4"><h1 className="text-2xl font-bold">Assignments</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="circulars" element={<div className="p-4"><h1 className="text-2xl font-bold">Circulars & Notices</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="leave" element={<div className="p-4"><h1 className="text-2xl font-bold">Leave Portal</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="lms" element={<div className="p-4"><h1 className="text-2xl font-bold">LMS Quiz</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="eca" element={<div className="p-4"><h1 className="text-2xl font-bold">ECA & Achievements</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-                <Route path="resume" element={<div className="p-4"><h1 className="text-2xl font-bold">Resume Builder</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>} />
-              </Route>
+                {/* Student Routes */}
+                <Route
+                  path="/student"
+                  element={
+                    <ProtectedRoute allowedRoles={['student']}>
+                      <DashboardLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<StudentDashboard />} />
+                  <Route path="personal" element={<PersonalDetailsStudent />} />
+                  <Route path="academic" element={<AcademicDetailsStudent />} />
+                  <Route path="timetable" element={<TimetableSyllabusStudent />} />
+                  <Route path="marks" element={<MarksGradesStudent />} />
+                  <Route path="notes" element={<NotesQuestionBankStudent />} />
+                  <Route path="assignments" element={<AssignmentsStudent />} />
+                  <Route path="circulars" element={<CircularsStudent />} />
+                  <Route path="leave" element={<LeavePortalStudent />} />
+                  <Route path="lms" element={<LMSQuizStudent />} />
+                  <Route path="eca" element={<ECAAchievementsStudent />} />
+                  <Route path="resume" element={<ResumeBuilderStudent />} />
+                </Route>
               
               {/* Faculty Routes */}
               <Route
