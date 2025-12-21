@@ -109,30 +109,30 @@ export default function AdminDashboard() {
           variant="primary"
           delay={0.1}
         />
-        <StatCard
-          title="Faculty Members"
-          value="27"
-          subtitle="Including 8 tutors"
-          icon={Users}
-          variant="accent"
-          delay={0.2}
-        />
-        <StatCard
-          title="Marks Pending"
-          value="8"
-          subtitle="Awaiting approval"
-          icon={ClipboardCheck}
-          variant="warning"
-          delay={0.3}
-        />
-        <StatCard
-          title="Active Semester"
-          value="5th"
-          subtitle="Odd Semester 2024"
-          icon={Calendar}
-          variant="info"
-          delay={0.4}
-        />
+          <StatCard
+            title="Faculty Members"
+            value="27"
+            subtitle="Including 8 tutors"
+            icon={Users}
+            variant="accent"
+            delay={0.2}
+          />
+          <StatCard
+            title="Pending Leaves"
+            value="14"
+            subtitle="Awaiting approval"
+            icon={ExternalLink}
+            variant="success"
+            delay={0.3}
+          />
+          <StatCard
+            title="Approve Marks"
+            value="8"
+            subtitle="Awaiting approval"
+            icon={ClipboardCheck}
+            variant="warning"
+            delay={0.4}
+          />
       </div>
 
       {/* Main Content Grid */}
