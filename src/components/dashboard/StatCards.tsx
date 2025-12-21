@@ -15,6 +15,7 @@ interface StatCardProps {
   variant?: 'primary' | 'accent' | 'success' | 'warning' | 'info';
   className?: string;
   delay?: number;
+  onClick?: () => void;
 }
 
 const variantStyles = {
