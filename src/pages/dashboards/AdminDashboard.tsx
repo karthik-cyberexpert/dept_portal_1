@@ -37,6 +37,46 @@ import {
   Cell,
 } from 'recharts';
 
+const departmentStats = [
+  { month: 'Jan', students: 400, faculty: 24 },
+  { month: 'Feb', students: 450, faculty: 25 },
+  { month: 'Mar', students: 480, faculty: 26 },
+  { month: 'Apr', students: 510, faculty: 28 },
+  { month: 'May', students: 540, faculty: 30 },
+  { month: 'Jun', students: 580, faculty: 32 },
+];
+
+const batchDistribution = [
+  { name: 'Batch 2021-25', value: 160, color: 'hsl(var(--primary))' },
+  { name: 'Batch 2022-26', value: 140, color: 'hsl(var(--accent))' },
+  { name: 'Batch 2023-27', value: 150, color: 'hsl(var(--success))' },
+  { name: 'Batch 2024-28', value: 130, color: 'hsl(var(--warning))' },
+];
+
+const marksApprovalQueue = [
+  { exam: 'End-Sem Theory Portions', tutor: 'Prof. Amrita', section: 'CSE-A', count: 64 },
+  { exam: 'Internal Assessment 2', tutor: 'Dr. Ramesh', section: 'CSE-B', count: 62 },
+  { exam: 'Practical Exam Viva', tutor: 'Prof. Suresh', section: 'CSE-C', count: 60 },
+];
+
+const recentActivities = [
+  { type: 'circular', action: 'Posted New Circular', target: 'Regarding Semester Holidays', time: '2h ago' },
+  { type: 'marks', action: 'Approved Internal Marks', target: 'Data Structures • Section B', time: '4h ago' },
+  { type: 'timetable', action: 'Updated Timetable', target: 'Third Year • Semester 6', time: '1d ago' },
+  { type: 'faculty', action: 'New Faculty Joined', target: 'Dr. Preeti • AI/ML Dept', time: '2d ago' },
+];
+
+const semesterProgress = [
+  { semester: 'Sem 1', progress: 100, status: 'completed' },
+  { semester: 'Sem 2', progress: 100, status: 'completed' },
+  { semester: 'Sem 3', progress: 100, status: 'completed' },
+  { semester: 'Sem 4', progress: 100, status: 'completed' },
+  { semester: 'Sem 5', progress: 100, status: 'completed' },
+  { semester: 'Sem 6', progress: 100, status: 'completed' },
+  { semester: 'Sem 7', progress: 45, status: 'active' },
+  { semester: 'Sem 8', progress: 0, status: 'pending' },
+];
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -97,33 +137,33 @@ export default function AdminDashboard() {
             delay={0.1}
             onClick={() => navigate('/admin/students')}
           />
-            <StatCard
-              title="Faculty Members"
-              value={stats.faculty.toString()}
-              subtitle="Department staff"
-              icon={Users}
-              variant="accent"
-              delay={0.2}
-              onClick={() => navigate('/admin/faculty')}
-            />
-            <StatCard
-              title="Pending Leaves"
-              value={stats.pendingLeaves.toString()}
-              subtitle="Awaiting HOD approval"
-              icon={ExternalLink}
-              variant="success"
-              delay={0.3}
-              onClick={() => navigate('/admin/leave')}
-            />
-            <StatCard
-              title="Approve Marks"
-              value={stats.pendingMarks.toString()}
-              subtitle="Awaiting final approval"
-              icon={ClipboardCheck}
-              variant="warning"
-              delay={0.4}
-              onClick={() => navigate('/admin/marks')}
-            />
+          <StatCard
+            title="Faculty Members"
+            value={stats.faculty.toString()}
+            subtitle="Department staff"
+            icon={Users}
+            variant="accent"
+            delay={0.2}
+            onClick={() => navigate('/admin/faculty')}
+          />
+          <StatCard
+            title="Pending Leaves"
+            value={stats.pendingLeaves.toString()}
+            subtitle="Awaiting HOD approval"
+            icon={ExternalLink}
+            variant="success"
+            delay={0.3}
+            onClick={() => navigate('/admin/leave')}
+          />
+          <StatCard
+            title="Approve Marks"
+            value={stats.pendingMarks.toString()}
+            subtitle="Awaiting final approval"
+            icon={ClipboardCheck}
+            variant="warning"
+            delay={0.4}
+            onClick={() => navigate('/admin/marks')}
+          />
 
       </div>
 
