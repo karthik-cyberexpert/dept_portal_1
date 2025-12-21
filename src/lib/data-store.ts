@@ -252,6 +252,30 @@ const generateMockTutors = (): Tutor[] => {
   }));
 };
 
+// Graduation Logic
+export function checkGraduationLogic() {
+  const students = getData<Student>(STUDENTS_KEY);
+  const batches = getData<{ id: string, name: string, sem8EndDate: string }>('college_portal_batches');
+  
+  let updated = false;
+  const now = new Date();
+
+  const updatedStudents = students.map(student => {
+    const batch = batches.find(b => b.name === student.batch);
+    if (batch && batch.sem8EndDate && new Date(batch.sem8EndDate) < now) {
+      if (student.status !== 'Graduated') {
+        updated = true;
+        return { ...student, status: 'Graduated' as const };
+      }
+    }
+    return student;
+  });
+
+  if (updated) {
+    saveStudents(updatedStudents);
+  }
+}
+
 // Storage functions
 export function getStudents(): Student[] {
   try {
