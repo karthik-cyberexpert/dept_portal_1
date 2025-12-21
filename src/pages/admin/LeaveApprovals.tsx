@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, 
@@ -18,104 +18,64 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
+import { getData, updateItem } from '@/lib/data-store';
 
-const leaveRequests = [
-  { 
-    id: '1', 
-    student: 'Arun Prasath', 
-    rollNo: '21CS001', 
-    batch: '2021-2025',
-    section: 'CSE-A',
-    tutor: 'Prof. Lakshmi',
-    type: 'Medical', 
-    startDate: '2024-03-20', 
-    endDate: '2024-03-22', 
-    days: 3, 
-    reason: 'Severe fever and doctor advised rest.',
-    status: 'pending',
-    photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=400&fit=crop'
-  },
-  { 
-    id: '2', 
-    student: 'Priya Sharma', 
-    rollNo: '21CS045', 
-    batch: '2021-2025',
-    section: 'CSE-B',
-    tutor: 'Dr. Ramesh',
-    type: 'Family Function', 
-    startDate: '2024-03-25', 
-    endDate: '2024-03-25', 
-    days: 1, 
-    reason: "Sister's wedding engagement ceremony.",
-    status: 'pending',
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'
-  },
-  { 
-    id: '3', 
-    student: 'Suresh Kumar', 
-    rollNo: '22CS089', 
-    batch: '2022-2026',
-    section: 'CSE-C',
-    tutor: 'Mr. Senthil',
-    type: 'On Duty', 
-    startDate: '2024-03-21', 
-    endDate: '2024-03-24', 
-    days: 4, 
-    reason: 'National level Hackathon at Anna University.',
-    status: 'pending',
-    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop'
-  },
-  { 
-    id: '4', 
-    student: 'Karthik Raja', 
-    rollNo: '21CS023', 
-    batch: '2021-2025',
-    section: 'CSE-A',
-    tutor: 'Prof. Lakshmi',
-    type: 'On Duty', 
-    startDate: '2024-03-21', 
-    endDate: '2024-03-21', 
-    days: 1, 
-    reason: 'Inter-college symposium at IIT Madras.',
-    status: 'approved',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
-  },
-  { 
-    id: '5', 
-    student: 'Meena Kumari', 
-    rollNo: '23CS012', 
-    batch: '2023-2027',
-    section: 'CSE-A',
-    tutor: 'Dr. Priya',
-    type: 'Medical', 
-    startDate: '2024-03-18', 
-    endDate: '2024-03-19', 
-    days: 2, 
-    reason: 'Dental appointment for surgery.',
-    status: 'approved',
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop'
-  }
-];
+const LEAVE_REQUESTS_KEY = 'college_portal_leave_requests';
+
+interface LeaveRequest {
+  id: string;
+  student: string;
+  rollNo: string;
+  batch: string;
+  section: string;
+  tutor: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  photo: string;
+}
 
 export default function LeaveApprovals() {
-  const [activeTab, setActiveTab] = React.useState<'pending' | 'history'>('pending');
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const loadRequests = () => {
+    const data = getData<LeaveRequest>(LEAVE_REQUESTS_KEY);
+    setRequests(data);
+    setLoading(false);
+  };
 
   const handleAction = (id: string, action: 'approve' | 'reject') => {
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    updateItem<LeaveRequest>(LEAVE_REQUESTS_KEY, id, { status: newStatus });
+    
     toast({
       title: action === 'approve' ? "Leave Approved by Admin" : "Leave Rejected by Admin",
       description: `Request ${id} has been ${action}d at department level.`,
       variant: action === 'approve' ? "default" : "destructive",
     });
+    
+    loadRequests();
   };
 
-  const filteredRequests = leaveRequests
+  const filteredRequests = requests
     .filter(r => activeTab === 'pending' ? r.status === 'pending' : r.status !== 'pending')
     .filter(r => 
       r.student.toLowerCase().includes(searchQuery.toLowerCase()) || 
       r.rollNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.section.toLowerCase().includes(searchQuery.toLowerCase())
+      (r.section && r.section.toLowerCase().includes(searchQuery.toLowerCase()))
     );
+
+  if (loading) return <div className="p-8 text-center">Loading requests...</div>;
 
   return (
     <div className="space-y-6">
@@ -135,7 +95,7 @@ export default function LeaveApprovals() {
             onClick={() => setActiveTab('pending')}
             className="rounded-lg"
           >
-            Pending ({leaveRequests.filter(r => r.status === 'pending').length})
+            Pending ({requests.filter(r => r.status === 'pending').length})
           </Button>
           <Button 
             variant={activeTab === 'history' ? 'default' : 'ghost'} 
@@ -147,6 +107,7 @@ export default function LeaveApprovals() {
           </Button>
         </div>
       </motion.div>
+
 
       {/* Filters */}
       <motion.div 

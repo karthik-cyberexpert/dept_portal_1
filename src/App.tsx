@@ -3,16 +3,22 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { initializeStorage } from "@/lib/data-store";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import LoginPage from "@/pages/LoginPage";
-import StudentDashboard from "@/pages/dashboards/StudentDashboard";
-import FacultyDashboard from "@/pages/dashboards/FacultyDashboard";
-import TutorDashboard from "@/pages/dashboards/TutorDashboard";
+import HoverReceiver from "@/visual-edits/VisualEditsMessenger";
 
-// Student Imports
+// Layout & Auth
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+
+// Public Pages
+import LoginPage from "@/pages/LoginPage";
+import NotFound from "@/pages/NotFound";
+
+// Student Pages
+import StudentDashboard from "@/pages/dashboards/StudentDashboard";
 import PersonalDetailsStudent from "@/pages/student/PersonalDetails";
 import AcademicDetailsStudent from "@/pages/student/AcademicDetails";
 import TimetableSyllabusStudent from "@/pages/student/TimetableSyllabus";
@@ -25,7 +31,8 @@ import LMSQuizStudent from "@/pages/student/LMSQuiz";
 import ECAAchievementsStudent from "@/pages/student/ECAAchievements";
 import ResumeBuilderStudent from "@/pages/student/ResumeBuilder";
 
-// Faculty Imports
+// Faculty Pages
+import FacultyDashboard from "@/pages/dashboards/FacultyDashboard";
 import PersonalDetailsFaculty from "@/pages/faculty/PersonalDetails";
 import MyClassesFaculty from "@/pages/faculty/MyClasses";
 import TimetableFaculty from "@/pages/faculty/Timetable";
@@ -34,7 +41,9 @@ import NotesUploadFaculty from "@/pages/faculty/NotesUpload";
 import AssignmentsFaculty from "@/pages/faculty/Assignments";
 import CircularsFaculty from "@/pages/faculty/Circulars";
 
-// Tutor Imports
+// Tutor Pages
+import TutorDashboard from "@/pages/dashboards/TutorDashboard";
+import ClassAnalytics from "@/pages/tutor/ClassAnalytics";
 import PersonalDetails from "@/pages/tutor/PersonalDetails";
 import ClassManagement from "@/pages/tutor/ClassManagement";
 import TimetableTutor from "@/pages/tutor/Timetable";
@@ -45,7 +54,8 @@ import LeaveApprovals from "@/pages/tutor/LeaveApprovals";
 import LMSAnalytics from "@/pages/tutor/LMSAnalytics";
 import ECAApprovals from "@/pages/tutor/ECAApprovals";
 import CircularsTutor from "@/pages/tutor/Circulars";
-import ClassAnalytics from "@/pages/tutor/ClassAnalytics";
+
+// Admin Pages
 import AdminDashboard from "@/pages/dashboards/AdminDashboard";
 import ManageStudents from "@/pages/admin/ManageStudents";
 import ManageFaculty from "@/pages/admin/ManageFaculty";
@@ -58,17 +68,20 @@ import Assignments from "@/pages/admin/Assignments";
 import CircularsAdmin from "@/pages/admin/Circulars";
 import LMSManagement from "@/pages/admin/LMSManagement";
 import ECAAnalytics from "@/pages/admin/ECAAnalytics";
+import LeaveApprovalsAdmin from "@/pages/admin/LeaveApprovals";
 import Settings from "@/pages/admin/Settings";
 import Profile from "@/pages/admin/Profile";
-import LeaveApprovalsAdmin from "@/pages/admin/LeaveApprovals";
-import NotFound from "./pages/NotFound";
-import HoverReceiver from "@/visual-edits/VisualEditsMessenger";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+const App = () => {
+  useEffect(() => {
+    initializeStorage();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
       <Toaster />
       <Sonner />
       <HoverReceiver />
@@ -178,7 +191,8 @@ const App = () => (
         </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+};
 
 export default App;

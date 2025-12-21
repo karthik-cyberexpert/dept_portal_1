@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { StatCard } from '@/components/dashboard/StatCards';
@@ -21,6 +21,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getData } from '@/lib/data-store';
 import {
   AreaChart,
   Area,
@@ -37,31 +38,32 @@ import {
 } from 'recharts';
 
 const departmentStats = [
-  { month: 'Aug', students: 450, faculty: 25 },
-  { month: 'Sep', students: 455, faculty: 25 },
-  { month: 'Oct', students: 460, faculty: 26 },
-  { month: 'Nov', students: 458, faculty: 26 },
-  { month: 'Dec', students: 462, faculty: 27 },
+  { month: 'Jan', students: 400, faculty: 24 },
+  { month: 'Feb', students: 450, faculty: 25 },
+  { month: 'Mar', students: 480, faculty: 26 },
+  { month: 'Apr', students: 510, faculty: 28 },
+  { month: 'May', students: 540, faculty: 30 },
+  { month: 'Jun', students: 580, faculty: 32 },
 ];
 
 const batchDistribution = [
-  { name: '2021-2025', value: 240, color: '#6366f1' },
-  { name: '2022-2026', value: 220, color: '#14b8a6' },
-  { name: '2023-2027', value: 200, color: '#f59e0b' },
-  { name: '2024-2028', value: 180, color: '#ec4899' },
+  { name: 'Batch 2021-25', value: 160, color: 'hsl(var(--primary))' },
+  { name: 'Batch 2022-26', value: 140, color: 'hsl(var(--accent))' },
+  { name: 'Batch 2023-27', value: 150, color: 'hsl(var(--success))' },
+  { name: 'Batch 2024-28', value: 130, color: 'hsl(var(--warning))' },
 ];
 
 const marksApprovalQueue = [
-  { exam: 'IA1 - Data Structures', tutor: 'Prof. Lakshmi', section: 'CSE-A', count: 60, status: 'pending' },
-  { exam: 'IA1 - DBMS', tutor: 'Dr. Ramesh', section: 'CSE-B', count: 58, status: 'pending' },
-  { exam: 'IA2 - OS', tutor: 'Mr. Senthil', section: 'CSE-C', count: 55, status: 'pending' },
+  { exam: 'End-Sem Theory Portions', tutor: 'Prof. Amrita', section: 'CSE-A', count: 64 },
+  { exam: 'Internal Assessment 2', tutor: 'Dr. Ramesh', section: 'CSE-B', count: 62 },
+  { exam: 'Practical Exam Viva', tutor: 'Prof. Suresh', section: 'CSE-C', count: 60 },
 ];
 
 const recentActivities = [
-  { action: 'Timetable Published', target: 'Semester 5', time: '2 hours ago', type: 'timetable' },
-  { action: 'Circular Posted', target: 'Exam Schedule', time: '4 hours ago', type: 'circular' },
-  { action: 'Faculty Assigned', target: 'Dr. Kumar to CSE-D', time: '1 day ago', type: 'faculty' },
-  { action: 'Marks Approved', target: 'IA1 - All Sections', time: '2 days ago', type: 'marks' },
+  { type: 'circular', action: 'Posted New Circular', target: 'Regarding Semester Holidays', time: '2h ago' },
+  { type: 'marks', action: 'Approved Internal Marks', target: 'Data Structures • Section B', time: '4h ago' },
+  { type: 'timetable', action: 'Updated Timetable', target: 'Third Year • Semester 6', time: '1d ago' },
+  { type: 'faculty', action: 'New Faculty Joined', target: 'Dr. Preeti • AI/ML Dept', time: '2d ago' },
 ];
 
 const semesterProgress = [
@@ -69,14 +71,44 @@ const semesterProgress = [
   { semester: 'Sem 2', progress: 100, status: 'completed' },
   { semester: 'Sem 3', progress: 100, status: 'completed' },
   { semester: 'Sem 4', progress: 100, status: 'completed' },
-  { semester: 'Sem 5', progress: 65, status: 'active' },
-  { semester: 'Sem 6', progress: 0, status: 'upcoming' },
-  { semester: 'Sem 7', progress: 0, status: 'upcoming' },
-  { semester: 'Sem 8', progress: 0, status: 'upcoming' },
+  { semester: 'Sem 5', progress: 100, status: 'completed' },
+  { semester: 'Sem 6', progress: 100, status: 'completed' },
+  { semester: 'Sem 7', progress: 45, status: 'active' },
+  { semester: 'Sem 8', progress: 0, status: 'pending' },
 ];
+
+interface LeaveRequest {
+  status: string;
+}
+
+interface MarksInternal {
+  status: string;
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    students: 0,
+    faculty: 0,
+    pendingLeaves: 0,
+    pendingMarks: 0
+  });
+
+  useEffect(() => {
+    const studentsArr = getData<unknown[]>('college_portal_students') || [];
+    const facultyArr = getData<unknown[]>('college_portal_faculty') || [];
+    const leavesArr = getData<LeaveRequest[]>('college_portal_leave_requests') || [];
+    const marksArr = getData<MarksInternal[]>('college_portal_marksInternal') || [];
+    
+    const pendingAdminMarks = marksArr.filter((m) => m.status === 'pending_admin');
+
+    setStats({
+      students: studentsArr.length,
+      faculty: facultyArr.length,
+      pendingLeaves: leavesArr.filter((l) => l.status === 'pending').length,
+      pendingMarks: pendingAdminMarks.length
+    });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -87,15 +119,15 @@ export default function AdminDashboard() {
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold">Welcome, Dr. Rajesh! 🎓</h1>
+          <h1 className="text-3xl font-bold font-display">Welcome, Dr. Rajesh! 🎓</h1>
           <p className="text-muted-foreground">Head of Department • Computer Science & Engineering</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate('/admin/circulars')}>
             <Bell className="w-4 h-4 mr-2" />
             Post Circular
           </Button>
-          <Button variant="gradient">
+          <Button variant="gradient" onClick={() => navigate('/admin/settings')}>
             <Settings className="w-4 h-4 mr-2" />
             Department Settings
           </Button>
@@ -104,44 +136,42 @@ export default function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Students"
-            value="840"
-            subtitle="Across all batches"
-            icon={GraduationCap}
-            trend={{ value: 5, isPositive: true }}
-            variant="primary"
-            delay={0.1}
-            onClick={() => navigate('/admin/students')}
-          />
-            <StatCard
-              title="Faculty Members"
-              value="27"
-              subtitle="Including 8 tutors"
-              icon={Users}
-              variant="accent"
-              delay={0.2}
-              onClick={() => navigate('/admin/faculty')}
-            />
-            <StatCard
-              title="Pending Leaves"
-              value="14"
-              subtitle="Awaiting approval"
-              icon={ExternalLink}
-              variant="success"
-              delay={0.3}
-              onClick={() => navigate('/admin/leave')}
-            />
-            <StatCard
-              title="Approve Marks"
-              value="8"
-              subtitle="Awaiting approval"
-              icon={ClipboardCheck}
-              variant="warning"
-              delay={0.4}
-              onClick={() => navigate('/admin/marks')}
-            />
-
+        <StatCard
+          title="Total Students"
+          value={stats.students}
+          subtitle="Across all batches"
+          icon={GraduationCap}
+          variant="primary"
+          delay={0.1}
+          onClick={() => navigate('/admin/students')}
+        />
+        <StatCard
+          title="Faculty Members"
+          value={stats.faculty}
+          subtitle="Department staff"
+          icon={Users}
+          variant="accent"
+          delay={0.2}
+          onClick={() => navigate('/admin/faculty')}
+        />
+        <StatCard
+          title="Pending Leaves"
+          value={stats.pendingLeaves}
+          subtitle="Awaiting HOD approval"
+          icon={ExternalLink}
+          variant="success"
+          delay={0.3}
+          onClick={() => navigate('/admin/leave')}
+        />
+        <StatCard
+          title="Approve Marks"
+          value={stats.pendingMarks}
+          subtitle="Awaiting final approval"
+          icon={ClipboardCheck}
+          variant="warning"
+          delay={0.4}
+          onClick={() => navigate('/admin/marks')}
+        />
       </div>
 
       {/* Main Content Grid */}
@@ -234,7 +264,7 @@ export default function AdminDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Marks Approval Queue</h3>
-            <Button variant="gradient" size="sm">Approve All</Button>
+            <Button variant="gradient" size="sm" onClick={() => navigate('/admin/marks')}>Approve All</Button>
           </div>
           <div className="space-y-3">
             {marksApprovalQueue.map((item, index) => (
@@ -257,7 +287,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="success" size="sm">
+                  <Button variant="success" size="sm" onClick={() => navigate('/admin/marks')}>
                     <CheckCircle className="w-4 h-4 mr-1" />
                     Approve
                   </Button>
@@ -320,7 +350,7 @@ export default function AdminDashboard() {
       >
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Semester Progress (2021-2025 Batch)</h3>
-          <Button variant="outline" size="sm">Configure Dates</Button>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/settings')}>Configure Dates</Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {semesterProgress.map((sem, index) => (
@@ -365,15 +395,22 @@ export default function AdminDashboard() {
       >
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[
-              { icon: Users, label: 'Manage Students', color: 'primary', path: '/admin/students' },
-              { icon: GraduationCap, label: 'Manage Faculty', color: 'accent', path: '/admin/faculty' },
-              { icon: ExternalLink, label: 'Leave Approvals', color: 'success', path: '/admin/leave' },
-              { icon: ClipboardCheck, label: 'Approve Marks', color: 'warning', path: '/admin/marks' },
-              { icon: Bell, label: 'Post Circular', color: 'info', path: '/admin/circulars' },
-              { icon: BarChart3, label: 'Analytics', color: 'primary', path: '/admin/analytics' },
-            ].map((action, index) => {
+          {[
+            { icon: Users, label: 'Manage Students', color: 'primary', path: '/admin/students' },
+            { icon: GraduationCap, label: 'Manage Faculty', color: 'accent', path: '/admin/faculty' },
+            { icon: ExternalLink, label: 'Leave Approvals', color: 'success', path: '/admin/leave' },
+            { icon: ClipboardCheck, label: 'Approve Marks', color: 'warning', path: '/admin/marks' },
+            { icon: Bell, label: 'Post Circular', color: 'info', path: '/admin/circulars' },
+            { icon: BarChart3, label: 'Analytics', color: 'primary', path: '/admin/settings' },
+          ].map((action, index) => {
             const Icon = action.icon;
+            const colorMap: Record<string, string> = {
+              primary: 'bg-primary/10 text-primary',
+              accent: 'bg-accent/10 text-accent',
+              success: 'bg-success/10 text-success',
+              warning: 'bg-warning/10 text-warning',
+              info: 'bg-info/10 text-info',
+            };
             return (
               <motion.button
                 key={index}
@@ -382,7 +419,7 @@ export default function AdminDashboard() {
                 onClick={() => navigate(action.path)}
                 className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-all text-center group"
               >
-                <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 bg-${action.color}/10 text-${action.color} group-hover:scale-110 transition-transform`}>
+                <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 ${colorMap[action.color]} group-hover:scale-110 transition-transform`}>
                   <Icon className="w-6 h-6" />
                 </div>
                 <p className="text-sm font-medium">{action.label}</p>

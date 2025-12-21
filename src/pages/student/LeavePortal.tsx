@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -9,16 +9,31 @@ import {
   Plus,
   ArrowRight,
   FileText,
-  UserCheck
+  UserCheck,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { getStudents, Student } from '@/lib/data-store';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LeavePortal() {
+  const { user } = useAuth();
   const [showApply, setShowApply] = useState(false);
+  const [studentData, setStudentData] = useState<Student | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      const students = getStudents();
+      const current = students.find(s => s.email === user.email);
+      if (current) setStudentData(current);
+    }
+  }, [user]);
+
+  const isGraduated = studentData?.status === 'Graduated';
 
   const leaveHistory = [
     { id: 1, type: "Sick Leave", from: "Oct 10", to: "Oct 12", reason: "Viral fever", status: "approved", approvedBy: "Tutor - Mrs. Anitha" },
@@ -56,9 +71,15 @@ export default function LeavePortal() {
         <Button 
           variant={showApply ? "outline" : "gradient"} 
           className="rounded-xl shadow-lg shadow-primary/20"
-          onClick={() => setShowApply(!showApply)}
+          onClick={() => !isGraduated && setShowApply(!showApply)}
+          disabled={isGraduated}
         >
-          {showApply ? "Cancel Request" : (
+          {isGraduated ? (
+            <>
+              <Lock className="w-4 h-4 mr-2" />
+              Portal Locked
+            </>
+          ) : showApply ? "Cancel Request" : (
             <>
               <Plus className="w-4 h-4 mr-2" />
               Apply Leave / OD
@@ -66,6 +87,17 @@ export default function LeavePortal() {
           )}
         </Button>
       </motion.div>
+
+      {isGraduated && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center gap-3 text-destructive mb-6"
+        >
+          <AlertCircle className="w-5 h-5" />
+          <p className="text-sm font-bold">This portal is locked as your batch (2020-2024) has graduated. Applications are no longer accepted.</p>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="wait">

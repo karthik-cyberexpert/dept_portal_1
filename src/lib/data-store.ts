@@ -60,6 +60,108 @@ export interface Tutor {
 const STUDENTS_KEY = 'college_portal_students';
 const FACULTY_KEY = 'college_portal_faculty';
 const TUTORS_KEY = 'college_portal_tutors';
+const LEAVE_REQUESTS_KEY = 'college_portal_leave_requests';
+
+// Generic LocalStorage helpers
+export function getData<T>(key: string): T[] {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveData<T>(key: string, data: T[]): void {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+export function updateItem<T extends { id: string }>(key: string, id: string, updates: Partial<T>): T | null {
+  const items = getData<T>(key);
+  const index = items.findIndex(item => item.id === id);
+  if (index === -1) return null;
+  items[index] = { ...items[index], ...updates };
+  saveData(key, items);
+  return items[index];
+}
+
+export function deleteItem<T extends { id: string }>(key: string, id: string): boolean {
+  const items = getData<T>(key);
+  const filtered = items.filter(item => item.id !== id);
+  if (filtered.length === items.length) return false;
+  saveData(key, filtered);
+  return true;
+}
+
+// Initialization Logic
+export function initializeStorage() {
+  const keys = [
+    'users', 'students', 'faculties', 'tutors', 'admins', 'batches', 'classes', 
+    'sections', 'semesters', 'subjects', 'subjectAssignments', 'timetable', 
+    'notesQbank', 'assignments', 'submissions', 'notices', 'marksInternal', 
+    'marksExternal', 'eca', 'lmsAttempts', 'resumeData', 'leaveRequests'
+  ];
+
+  keys.forEach(key => {
+    if (!localStorage.getItem(`college_portal_${key}`)) {
+      localStorage.setItem(`college_portal_${key}`, JSON.stringify([]));
+    }
+  });
+
+  // Seed with mock data if students are empty
+  if (getData(STUDENTS_KEY).length === 0) {
+    saveStudents(generateMockStudents());
+  }
+  if (getData(FACULTY_KEY).length === 0) {
+    saveFaculty(generateMockFaculty());
+  }
+  if (getData(TUTORS_KEY).length === 0) {
+    saveTutors(generateMockTutors());
+  }
+
+  // Seed batches if empty
+  const BATCHES_KEY = 'college_portal_batches';
+  if (getData(BATCHES_KEY).length === 0) {
+    saveData(BATCHES_KEY, [
+      { id: '1', name: '2021-2025', sem8EndDate: '2025-05-30' },
+      { id: '2', name: '2022-2026', sem8EndDate: '2026-05-30' },
+      { id: '3', name: '2023-2027', sem8EndDate: '2027-05-30' },
+      { id: '4', name: '2024-2028', sem8EndDate: '2028-05-30' },
+      { id: '5', name: '2020-2024', sem8EndDate: '2024-05-30' }, // This batch is graduated
+    ]);
+  }
+
+  if (getData(LEAVE_REQUESTS_KEY).length === 0) {
+    saveData(LEAVE_REQUESTS_KEY, [
+      { 
+        id: '1', 
+        student: 'Arun Prasath', 
+        rollNo: '21CS001', 
+        type: 'Medical', 
+        startDate: '2024-03-20', 
+        endDate: '2024-03-22', 
+        days: 3, 
+        reason: 'Severe fever and doctor advised rest.',
+        status: 'pending',
+        photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop'
+      },
+      { 
+        id: '2', 
+        student: 'Priya Sharma', 
+        rollNo: '21CS045', 
+        type: 'Family Function', 
+        startDate: '2024-03-25', 
+        endDate: '2024-03-25', 
+        days: 1, 
+        reason: "Sister's wedding engagement ceremony.",
+        status: 'pending',
+        photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'
+      }
+    ]);
+  }
+
+  checkGraduationLogic();
+}
 
 // Generate mock students
 const generateMockStudents = (): Student[] => {
@@ -164,6 +266,30 @@ const generateMockTutors = (): Tutor[] => {
     createdAt: new Date().toISOString(),
   }));
 };
+
+// Graduation Logic
+export function checkGraduationLogic() {
+  const students = getData<Student>(STUDENTS_KEY);
+  const batches = getData<{ id: string, name: string, sem8EndDate: string }>('college_portal_batches');
+  
+  let updated = false;
+  const now = new Date();
+
+  const updatedStudents = students.map(student => {
+    const batch = batches.find(b => b.name === student.batch);
+    if (batch && batch.sem8EndDate && new Date(batch.sem8EndDate) < now) {
+      if (student.status !== 'Graduated') {
+        updated = true;
+        return { ...student, status: 'Graduated' as const };
+      }
+    }
+    return student;
+  });
+
+  if (updated) {
+    saveStudents(updatedStudents);
+  }
+}
 
 // Storage functions
 export function getStudents(): Student[] {
