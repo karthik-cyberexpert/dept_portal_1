@@ -21,11 +21,24 @@ import {
 } from "@/components/ui/table";
 
 export default function MarksGrades() {
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case 'A+': return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/50';
+      case 'A': return 'bg-green-500/20 text-green-600 border-green-500/50';
+      case 'B+': return 'bg-teal-500/20 text-teal-600 border-teal-500/50';
+      case 'B': return 'bg-blue-500/20 text-blue-600 border-blue-500/50';
+      case 'C': return 'bg-amber-500/20 text-amber-600 border-amber-500/50';
+      case 'D': return 'bg-orange-500/20 text-orange-600 border-orange-500/50';
+      case 'U': return 'bg-destructive/20 text-destructive border-destructive/50';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
   const internalMarks = [
-    { subject: "Data Structures", code: "CS301", ia1: 22, ia2: 24, ia3: 21, assignment: 10, total: 77 },
-    { subject: "DBMS", code: "CS302", ia1: 18, ia2: 20, ia3: 19, assignment: 9, total: 66 },
-    { subject: "Operating Systems", code: "CS303", ia1: 25, ia2: 23, ia3: 24, assignment: 10, total: 82 },
-    { subject: "Networks", code: "CS304", ia1: 20, ia2: 21, ia3: 18, assignment: 8, total: 67 },
+    { subject: "Data Structures", code: "CS301", ia1: 22, ia2: 24, ia3: 21, assignment: 10, total: 77, external: 'A+' },
+    { subject: "DBMS", code: "CS302", ia1: 18, ia2: 20, ia3: 19, assignment: 9, total: 66, external: 'A' },
+    { subject: "Operating Systems", code: "CS303", ia1: 25, ia2: 23, ia3: 24, assignment: 10, total: 82, external: 'B+' },
+    { subject: "Networks", code: "CS304", ia1: 20, ia2: 21, ia3: 18, assignment: 8, total: 67, external: 'B' },
   ];
 
   const grades = [
