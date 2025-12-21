@@ -82,23 +82,30 @@ export default function AcademicDetails() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Details</h3>
-            {[
-              { label: "Branch", value: "Computer Science & Engineering", icon: Layout },
-              { label: "Curriculum", value: "Regulation 2021", icon: BookOpen },
-              { label: "Batch", value: "2021 - 2025", icon: Clock },
-              { label: "Regulation", value: "Choice Based Credit System", icon: FileBadge },
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <item.icon className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-medium">{item.label}</p>
-                  <p className="text-sm font-medium">{item.value}</p>
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Academic Info</h3>
+              {[
+                { label: "Current Status", value: "Active", icon: ShieldCheck, color: "text-success" },
+                { label: "Batch", value: "2021 - 2025", icon: Clock },
+                { label: "Year", value: "Year 3", icon: Calendar },
+                { label: "Semester", value: "Semester 5 (Odd)", icon: History },
+                { label: "Class", value: "B.E. CSE", icon: Layout },
+                { label: "Section", value: "Section A", icon: User },
+                { label: "Class Tutor", value: "Mrs. Anitha", icon: User },
+                { label: "Enrollment Type", value: "Regular", icon: BookOpen },
+                { label: "Admission Type", value: "Counseling", icon: FileBadge },
+                { label: "Current Papers", value: "6 Theory + 2 Labs", icon: BookOpen },
+                { label: "Certifications", value: "3 Active", icon: Award },
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <item.icon className={cn("w-5 h-5 text-muted-foreground", item.color)} />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground font-medium">{item.label}</p>
+                    <p className="text-sm font-medium">{item.value}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
         </motion.div>
 
         {/* Semester History */}
