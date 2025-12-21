@@ -356,14 +356,14 @@ export default function AdminDashboard() {
       >
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[
-            { icon: Users, label: 'Manage Students', color: 'primary' },
-            { icon: GraduationCap, label: 'Manage Faculty', color: 'accent' },
-            { icon: Calendar, label: 'Timetable', color: 'success' },
-            { icon: ClipboardCheck, label: 'Approve Marks', color: 'warning' },
-            { icon: Bell, label: 'Post Circular', color: 'info' },
-            { icon: BarChart3, label: 'Analytics', color: 'primary' },
-          ].map((action, index) => {
+            {[
+              { icon: Users, label: 'Manage Students', color: 'primary' },
+              { icon: GraduationCap, label: 'Manage Faculty', color: 'accent' },
+              { icon: ExternalLink, label: 'Leave Approvals', color: 'success' },
+              { icon: ClipboardCheck, label: 'Approve Marks', color: 'warning' },
+              { icon: Bell, label: 'Post Circular', color: 'info' },
+              { icon: BarChart3, label: 'Analytics', color: 'primary' },
+            ].map((action, index) => {
             const Icon = action.icon;
             return (
               <motion.button
