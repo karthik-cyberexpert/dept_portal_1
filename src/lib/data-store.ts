@@ -167,7 +167,7 @@ export function initializeStorage() {
 
 // Generate mock students
 const generateMockStudents = (): Student[] => {
-  const batches = ['2021-2025', '2022-2026', '2023-2027', '2024-2028'];
+  const batches = ['2021-2025', '2022-2026', '2023-2027', '2024-2028', '2020-2024'];
   const sections = ['A', 'B', 'C', 'D'];
   const names = [
     'Arun Prasath', 'Priya Sharma', 'Karthik Raja', 'Divya Lakshmi', 'Rahul Kumar',
@@ -179,9 +179,9 @@ const generateMockStudents = (): Student[] => {
   ];
 
   return names.map((name, index) => {
-    const batchIndex = Math.floor(index / 8);
+    const batchIndex = Math.floor(index / 6);
     const batch = batches[batchIndex] || batches[0];
-    const year = 4 - batchIndex;
+    const year = batch === '2020-2024' ? 4 : 4 - batchIndex;
     const semester = year * 2 - (Math.random() > 0.5 ? 0 : 1);
     const section = sections[index % 4];
 
