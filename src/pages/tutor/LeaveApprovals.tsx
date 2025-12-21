@@ -8,13 +8,15 @@ import {
   User, 
   MessageSquare,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from '@/components/ui/use-toast';
-import { getData, updateItem } from '@/lib/data-store';
+import { getData, updateItem, getTutors, Tutor } from '@/lib/data-store';
+import { useAuth } from '@/contexts/AuthContext';
 
 const LEAVE_REQUESTS_KEY = 'college_portal_leave_requests';
 
@@ -22,6 +24,8 @@ interface LeaveRequest {
   id: string;
   student: string;
   rollNo: string;
+  batch: string;
+  section: string;
   type: string;
   startDate: string;
   endDate: string;
@@ -32,13 +36,20 @@ interface LeaveRequest {
 }
 
 export default function LeaveApprovals() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tutorInfo, setTutorInfo] = useState<Tutor | null>(null);
 
   useEffect(() => {
+    if (user) {
+      const tutors = getTutors();
+      const current = tutors.find(t => t.email === user.email);
+      if (current) setTutorInfo(current);
+    }
     loadRequests();
-  }, []);
+  }, [user]);
 
   const loadRequests = () => {
     const data = getData<LeaveRequest>(LEAVE_REQUESTS_KEY);
