@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { StatCard } from '@/components/dashboard/StatCards';
@@ -21,6 +21,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getData } from '@/lib/data-store';
 import {
   AreaChart,
   Area,
@@ -36,47 +37,29 @@ import {
   Cell,
 } from 'recharts';
 
-const departmentStats = [
-  { month: 'Aug', students: 450, faculty: 25 },
-  { month: 'Sep', students: 455, faculty: 25 },
-  { month: 'Oct', students: 460, faculty: 26 },
-  { month: 'Nov', students: 458, faculty: 26 },
-  { month: 'Dec', students: 462, faculty: 27 },
-];
-
-const batchDistribution = [
-  { name: '2021-2025', value: 240, color: '#6366f1' },
-  { name: '2022-2026', value: 220, color: '#14b8a6' },
-  { name: '2023-2027', value: 200, color: '#f59e0b' },
-  { name: '2024-2028', value: 180, color: '#ec4899' },
-];
-
-const marksApprovalQueue = [
-  { exam: 'IA1 - Data Structures', tutor: 'Prof. Lakshmi', section: 'CSE-A', count: 60, status: 'pending' },
-  { exam: 'IA1 - DBMS', tutor: 'Dr. Ramesh', section: 'CSE-B', count: 58, status: 'pending' },
-  { exam: 'IA2 - OS', tutor: 'Mr. Senthil', section: 'CSE-C', count: 55, status: 'pending' },
-];
-
-const recentActivities = [
-  { action: 'Timetable Published', target: 'Semester 5', time: '2 hours ago', type: 'timetable' },
-  { action: 'Circular Posted', target: 'Exam Schedule', time: '4 hours ago', type: 'circular' },
-  { action: 'Faculty Assigned', target: 'Dr. Kumar to CSE-D', time: '1 day ago', type: 'faculty' },
-  { action: 'Marks Approved', target: 'IA1 - All Sections', time: '2 days ago', type: 'marks' },
-];
-
-const semesterProgress = [
-  { semester: 'Sem 1', progress: 100, status: 'completed' },
-  { semester: 'Sem 2', progress: 100, status: 'completed' },
-  { semester: 'Sem 3', progress: 100, status: 'completed' },
-  { semester: 'Sem 4', progress: 100, status: 'completed' },
-  { semester: 'Sem 5', progress: 65, status: 'active' },
-  { semester: 'Sem 6', progress: 0, status: 'upcoming' },
-  { semester: 'Sem 7', progress: 0, status: 'upcoming' },
-  { semester: 'Sem 8', progress: 0, status: 'upcoming' },
-];
-
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    students: 0,
+    faculty: 0,
+    pendingLeaves: 0,
+    pendingMarks: 0
+  });
+
+  useEffect(() => {
+    const students = getData<any>('college_portal_students');
+    const faculty = getData<any>('college_portal_faculty');
+    const leaves = getData<any>('college_portal_leave_requests');
+    const marks = getData<any>('college_portal_marksInternal').filter((m: any) => m.status === 'pending_admin');
+
+    setStats({
+      students: students.length,
+      faculty: faculty.length,
+      pendingLeaves: leaves.filter((l: any) => l.status === 'pending').length,
+      pendingMarks: marks.length
+    });
+  }, []);
+
 
   return (
     <div className="space-y-6">
