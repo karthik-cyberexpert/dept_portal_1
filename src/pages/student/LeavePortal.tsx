@@ -95,7 +95,7 @@ export default function LeavePortal() {
           className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center gap-3 text-destructive mb-6"
         >
           <AlertCircle className="w-5 h-5" />
-          <p className="text-sm font-bold">This portal is locked as your batch (2020-2024) has graduated. Applications are no longer accepted.</p>
+          <p className="text-sm font-bold">This portal is locked as your batch ({studentData?.batch}) has graduated. Applications are no longer accepted.</p>
         </motion.div>
       )}
 
