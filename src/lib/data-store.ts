@@ -118,6 +118,19 @@ export function initializeStorage() {
   if (getData(TUTORS_KEY).length === 0) {
     saveTutors(generateMockTutors());
   }
+
+  // Seed batches if empty
+  const BATCHES_KEY = 'college_portal_batches';
+  if (getData(BATCHES_KEY).length === 0) {
+    saveData(BATCHES_KEY, [
+      { id: '1', name: '2021-2025', sem8EndDate: '2025-05-30' },
+      { id: '2', name: '2022-2026', sem8EndDate: '2026-05-30' },
+      { id: '3', name: '2023-2027', sem8EndDate: '2027-05-30' },
+      { id: '4', name: '2024-2028', sem8EndDate: '2028-05-30' },
+      { id: '5', name: '2020-2024', sem8EndDate: '2024-05-30' }, // This batch is graduated
+    ]);
+  }
+
   if (getData(LEAVE_REQUESTS_KEY).length === 0) {
     saveData(LEAVE_REQUESTS_KEY, [
       { 
