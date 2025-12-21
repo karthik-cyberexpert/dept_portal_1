@@ -89,9 +89,10 @@ const adminLinks: SidebarLink[] = [
   { label: 'Assignments', icon: FileText, path: '/admin/assignments' },
   { label: 'Circulars', icon: Bell, path: '/admin/circulars' },
   { label: 'LMS Management', icon: Trophy, path: '/admin/lms' },
-  { label: 'ECA Analytics', icon: Sparkles, path: '/admin/eca' },
-  { label: 'Settings', icon: Settings, path: '/admin/settings' },
-];
+    { label: 'ECA Analytics', icon: Sparkles, path: '/admin/eca' },
+    { label: 'Leave Approvals', icon: ExternalLink, path: '/admin/leave', badge: '6' },
+    { label: 'Settings', icon: Settings, path: '/admin/settings' },
+  ];
 
 const getLinksByRole = (role: UserRole): SidebarLink[] => {
   switch (role) {
