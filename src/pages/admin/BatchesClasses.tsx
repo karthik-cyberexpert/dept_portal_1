@@ -67,7 +67,7 @@ export default function BatchesClasses() {
     // Initialize keys if they don't exist
     if (!localStorage.getItem(BATCHES_KEY)) saveData(BATCHES_KEY, []);
     if (!localStorage.getItem(CLASSES_KEY)) saveData(CLASSES_KEY, []);
-    if (!localStorage.getItem(SECTIONS_KEY)) saveData(SECTIONS_KEY) || saveData(SECTIONS_KEY, []);
+    if (!localStorage.getItem(SECTIONS_KEY)) saveData(SECTIONS_KEY, []);
   }, []);
 
   const refreshData = () => {
