@@ -70,9 +70,12 @@ export default function LeaveApprovals() {
     loadRequests();
   };
 
-  const filteredRequests = activeTab === 'pending' 
-    ? requests.filter(r => r.status === 'pending')
-    : requests.filter(r => r.status !== 'pending');
+  const filteredRequests = requests
+    .filter(r => activeTab === 'pending' ? r.status === 'pending' : r.status !== 'pending')
+    .filter(r => {
+      if (!tutorInfo) return true; // Show all if tutor info not linked (e.g. dev mode)
+      return r.batch === tutorInfo.batch && r.section === tutorInfo.section;
+    });
 
   if (loading) return <div className="p-8 text-center">Loading requests...</div>;
 
