@@ -131,20 +131,13 @@ export default function BatchesClasses() {
 
   const handleDeleteBatch = (batchId: string) => {
     const relatedClasses = classes.filter(c => c.batchId === batchId);
-    const hasSections = relatedClasses.some(c => sections.some(s => s.classId === c.id));
-    
-    if (hasSections) {
-      toast.error('Cannot delete batch: It has classes with existing sections');
+    if (relatedClasses.length > 0) {
+      toast.error('Cannot delete batch: It has associated classes. Delete classes first.');
       return;
     }
 
-    // Delete classes first then batch
-    const allClassIds = relatedClasses.map(c => c.id);
-    const updatedClasses = classes.filter(c => !allClassIds.includes(c.id));
-    saveData(CLASSES_KEY, updatedClasses);
-    
     deleteItem(BATCHES_KEY, batchId);
-    toast.success('Batch and its years deleted');
+    toast.success('Batch deleted');
     refreshData();
   };
 
