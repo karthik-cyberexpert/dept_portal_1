@@ -73,7 +73,8 @@ export default function LeaveApprovals() {
   const filteredRequests = requests
     .filter(r => activeTab === 'pending' ? r.status === 'pending' : r.status !== 'pending')
     .filter(r => {
-      if (!tutorInfo) return true; // Show all if tutor info not linked (e.g. dev mode)
+      // In a real app, we'd also filter by department, but here we filter by batch/section
+      if (!tutorInfo) return true; // fallback for admin or unlinked tutor
       return r.batch === tutorInfo.batch && r.section === tutorInfo.section;
     });
 
