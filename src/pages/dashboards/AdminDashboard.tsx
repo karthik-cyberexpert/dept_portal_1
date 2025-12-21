@@ -87,19 +87,20 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    const studentsArr = getData<unknown>('college_portal_students');
-    const facultyArr = getData<unknown>('college_portal_faculty');
-    const leavesArr = getData<{ status: string }>('college_portal_leave_requests');
-    const marksArr = getData<{ status: string }>('college_portal_marksInternal').filter((m) => m.status === 'pending_admin');
+    const studentsArr = getData<any[]>('college_portal_students') || [];
+    const facultyArr = getData<any[]>('college_portal_faculty') || [];
+    const leavesArr = getData<any[]>('college_portal_leave_requests') || [];
+    const marksArr = getData<any[]>('college_portal_marksInternal') || [];
+    
+    const pendingAdminMarks = marksArr.filter((m: any) => m.status === 'pending_admin');
 
     setStats({
       students: studentsArr.length,
       faculty: facultyArr.length,
-      pendingLeaves: leavesArr.filter((l) => l.status === 'pending').length,
-      pendingMarks: marksArr.length
+      pendingLeaves: leavesArr.filter((l: any) => l.status === 'pending').length,
+      pendingMarks: pendingAdminMarks.length
     });
   }, []);
-
 
   return (
     <div className="space-y-6">
@@ -110,15 +111,15 @@ export default function AdminDashboard() {
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold">Welcome, Dr. Rajesh! 🎓</h1>
+          <h1 className="text-3xl font-bold font-display">Welcome, Dr. Rajesh! 🎓</h1>
           <p className="text-muted-foreground">Head of Department • Computer Science & Engineering</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate('/admin/circulars')}>
             <Bell className="w-4 h-4 mr-2" />
             Post Circular
           </Button>
-          <Button variant="gradient">
+          <Button variant="gradient" onClick={() => navigate('/admin/settings')}>
             <Settings className="w-4 h-4 mr-2" />
             Department Settings
           </Button>
@@ -127,44 +128,42 @@ export default function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Students"
-            value={stats.students.toString()}
-            subtitle="Across all batches"
-            icon={GraduationCap}
-            trend={{ value: 5, isPositive: true }}
-            variant="primary"
-            delay={0.1}
-            onClick={() => navigate('/admin/students')}
-          />
-          <StatCard
-            title="Faculty Members"
-            value={stats.faculty.toString()}
-            subtitle="Department staff"
-            icon={Users}
-            variant="accent"
-            delay={0.2}
-            onClick={() => navigate('/admin/faculty')}
-          />
-          <StatCard
-            title="Pending Leaves"
-            value={stats.pendingLeaves.toString()}
-            subtitle="Awaiting HOD approval"
-            icon={ExternalLink}
-            variant="success"
-            delay={0.3}
-            onClick={() => navigate('/admin/leave')}
-          />
-          <StatCard
-            title="Approve Marks"
-            value={stats.pendingMarks.toString()}
-            subtitle="Awaiting final approval"
-            icon={ClipboardCheck}
-            variant="warning"
-            delay={0.4}
-            onClick={() => navigate('/admin/marks')}
-          />
-
+        <StatCard
+          title="Total Students"
+          value={stats.students}
+          subtitle="Across all batches"
+          icon={GraduationCap}
+          variant="primary"
+          delay={0.1}
+          onClick={() => navigate('/admin/students')}
+        />
+        <StatCard
+          title="Faculty Members"
+          value={stats.faculty}
+          subtitle="Department staff"
+          icon={Users}
+          variant="accent"
+          delay={0.2}
+          onClick={() => navigate('/admin/faculty')}
+        />
+        <StatCard
+          title="Pending Leaves"
+          value={stats.pendingLeaves}
+          subtitle="Awaiting HOD approval"
+          icon={ExternalLink}
+          variant="success"
+          delay={0.3}
+          onClick={() => navigate('/admin/leave')}
+        />
+        <StatCard
+          title="Approve Marks"
+          value={stats.pendingMarks}
+          subtitle="Awaiting final approval"
+          icon={ClipboardCheck}
+          variant="warning"
+          delay={0.4}
+          onClick={() => navigate('/admin/marks')}
+        />
       </div>
 
       {/* Main Content Grid */}
@@ -257,7 +256,7 @@ export default function AdminDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Marks Approval Queue</h3>
-            <Button variant="gradient" size="sm">Approve All</Button>
+            <Button variant="gradient" size="sm" onClick={() => navigate('/admin/marks')}>Approve All</Button>
           </div>
           <div className="space-y-3">
             {marksApprovalQueue.map((item, index) => (
@@ -280,7 +279,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="success" size="sm">
+                  <Button variant="success" size="sm" onClick={() => navigate('/admin/marks')}>
                     <CheckCircle className="w-4 h-4 mr-1" />
                     Approve
                   </Button>
@@ -303,7 +302,7 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-4">
             {recentActivities.map((activity, index) => {
-              const icons: Record<string, React.ElementType> = {
+              const icons: Record<string, any> = {
                 timetable: Calendar,
                 circular: Bell,
                 faculty: Users,
@@ -343,7 +342,7 @@ export default function AdminDashboard() {
       >
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Semester Progress (2021-2025 Batch)</h3>
-          <Button variant="outline" size="sm">Configure Dates</Button>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/settings')}>Configure Dates</Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {semesterProgress.map((sem, index) => (
@@ -388,15 +387,22 @@ export default function AdminDashboard() {
       >
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[
-              { icon: Users, label: 'Manage Students', color: 'primary', path: '/admin/students' },
-              { icon: GraduationCap, label: 'Manage Faculty', color: 'accent', path: '/admin/faculty' },
-              { icon: ExternalLink, label: 'Leave Approvals', color: 'success', path: '/admin/leave' },
-              { icon: ClipboardCheck, label: 'Approve Marks', color: 'warning', path: '/admin/marks' },
-              { icon: Bell, label: 'Post Circular', color: 'info', path: '/admin/circulars' },
-              { icon: BarChart3, label: 'Analytics', color: 'primary', path: '/admin/analytics' },
-            ].map((action, index) => {
+          {[
+            { icon: Users, label: 'Manage Students', color: 'primary', path: '/admin/students' },
+            { icon: GraduationCap, label: 'Manage Faculty', color: 'accent', path: '/admin/faculty' },
+            { icon: ExternalLink, label: 'Leave Approvals', color: 'success', path: '/admin/leave' },
+            { icon: ClipboardCheck, label: 'Approve Marks', color: 'warning', path: '/admin/marks' },
+            { icon: Bell, label: 'Post Circular', color: 'info', path: '/admin/circulars' },
+            { icon: BarChart3, label: 'Analytics', color: 'primary', path: '/admin/settings' },
+          ].map((action, index) => {
             const Icon = action.icon;
+            const colorMap: Record<string, string> = {
+              primary: 'bg-primary/10 text-primary',
+              accent: 'bg-accent/10 text-accent',
+              success: 'bg-success/10 text-success',
+              warning: 'bg-warning/10 text-warning',
+              info: 'bg-info/10 text-info',
+            };
             return (
               <motion.button
                 key={index}
@@ -405,7 +411,7 @@ export default function AdminDashboard() {
                 onClick={() => navigate(action.path)}
                 className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-all text-center group"
               >
-                <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 bg-${action.color}/10 text-${action.color} group-hover:scale-110 transition-transform`}>
+                <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 ${colorMap[action.color]} group-hover:scale-110 transition-transform`}>
                   <Icon className="w-6 h-6" />
                 </div>
                 <p className="text-sm font-medium">{action.label}</p>
