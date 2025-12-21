@@ -165,8 +165,9 @@ const App = () => (
                   <Route path="assignments" element={<Assignments />} />
                   <Route path="circulars" element={<CircularsAdmin />} />
                 <Route path="lms" element={<LMSManagement />} />
-                <Route path="eca" element={<ECAAnalytics />} />
-                <Route path="settings" element={<Settings />} />
+                  <Route path="eca" element={<ECAAnalytics />} />
+                  <Route path="leave" element={<LeaveApprovalsAdmin />} />
+                  <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />
               </Route>
               
