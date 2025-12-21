@@ -17,9 +17,9 @@ import {
   AlertCircle,
   Settings,
   BookOpen,
-  Trophy,
-  ExternalLink
-} from 'lucide-react';
+    Trophy,
+    ExternalLink,
+  } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AreaChart,
