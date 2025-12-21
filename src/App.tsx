@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { initializeStorage } from "@/lib/data-store";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import HoverReceiver from "@/visual-edits/VisualEditsMessenger";
 
 const queryClient = new QueryClient();
 
