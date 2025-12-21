@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -9,16 +9,31 @@ import {
   Plus,
   ArrowRight,
   FileText,
-  UserCheck
+  UserCheck,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { getStudents, Student } from '@/lib/data-store';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LeavePortal() {
+  const { user } = useAuth();
   const [showApply, setShowApply] = useState(false);
+  const [studentData, setStudentData] = useState<Student | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      const students = getStudents();
+      const current = students.find(s => s.email === user.email);
+      if (current) setStudentData(current);
+    }
+  }, [user]);
+
+  const isGraduated = studentData?.status === 'Graduated';
 
   const leaveHistory = [
     { id: 1, type: "Sick Leave", from: "Oct 10", to: "Oct 12", reason: "Viral fever", status: "approved", approvedBy: "Tutor - Mrs. Anitha" },
