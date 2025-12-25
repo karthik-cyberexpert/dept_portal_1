@@ -119,9 +119,11 @@ export const SECTIONS_KEY = 'sections';
 
 export interface BatchData {
   id: string;
-  startYear: number;
-  endYear: number;
+  startYear?: number;
+  endYear?: number;
   label: string;
+  name?: string; // Legacy/Alias support
+  sem8EndDate?: string;
 }
 
 export interface ClassData {
@@ -213,6 +215,18 @@ export function initializeStorage() {
   // Perform one-time purge of previously seeded dummy data
   purgeDummyData();
   
+  // Initialize default batches if empty - REMOVED to prevent dummy data
+  // const BATCHES_KEY = 'batches';
+  // if (getData<BatchData>(BATCHES_KEY).length === 0) {
+  //   saveData(BATCHES_KEY, [
+  //     { id: '1', label: '2021-2025', name: '2021-2025', sem8EndDate: '2025-05-30' },
+  //     { id: '2', label: '2022-2026', name: '2022-2026', sem8EndDate: '2026-05-30' },
+  //     { id: '3', label: '2023-2027', name: '2023-2027', sem8EndDate: '2027-05-30' },
+  //     { id: '4', label: '2024-2028', name: '2024-2028', sem8EndDate: '2028-05-30' },
+  //     // { id: '5', label: '2020-2024', name: '2020-2024', sem8EndDate: '2024-05-30' }, // Graduated
+  //   ]);
+  // }
+
   // checkGraduationLogic();
 }
 
@@ -259,13 +273,14 @@ function purgeDummyData() {
 // Graduation Logic
 export function checkGraduationLogic() {
   const students = getData<Student>(STUDENTS_KEY);
-  const batches = getData<{ id: string, name: string, sem8EndDate: string }>('college_portal_batches');
+  const batches = getData<BatchData>(BATCHES_KEY); // Use safe interface
   
   let updated = false;
   const now = new Date();
 
   const updatedStudents = students.map(student => {
-    const batch = batches.find(b => b.name === student.batch);
+    // Check both label and name for compatibility
+    const batch = batches.find(b => b.label === student.batch || b.name === student.batch);
     if (batch && batch.sem8EndDate && new Date(batch.sem8EndDate) < now) {
       if (student.status !== 'Graduated') {
         updated = true;

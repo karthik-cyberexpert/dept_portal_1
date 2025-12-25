@@ -139,7 +139,7 @@ export default function BatchesClasses() {
     const labels = ["", "1st Year", "2nd Year", "3rd Year", "4th Year"];
     
     // 1. Deactivate current
-    updateItem(CLASSES_KEY, activeClass.id, { isActive: false });
+    updateItem<ClassData>(CLASSES_KEY, activeClass.id, { isActive: false });
     
     // 2. Create next active class
     addItem<ClassData>(CLASSES_KEY, {
@@ -176,6 +176,25 @@ export default function BatchesClasses() {
 
     deleteItem(CLASSES_KEY, classId);
     toast.success('Class deleted');
+    refreshData();
+  };
+
+  const toggleClassActiveStatus = (id: string, newStatus: boolean) => {
+    const hasSections = sections.some(s => s.classId === id);
+    if (hasSections) {
+      toast.error('Cannot delete class: It has existing sections');
+      return;
+    }
+
+    updateItem<ClassData>(CLASSES_KEY, id, { isActive: newStatus });
+    toast.success(`Active year ${newStatus ? 'enabled' : 'disabled'}`);
+    refreshData();
+  };
+
+  const updateSection = (id: string, newName: string) => {
+    if (!newName.trim()) return;
+    updateItem<SectionData>(SECTIONS_KEY, id, { sectionName: newName });
+    toast.success('Section updated');
     refreshData();
   };
 
@@ -218,7 +237,7 @@ export default function BatchesClasses() {
       return;
     }
 
-    updateItem(SECTIONS_KEY, editingSection.id, { sectionName: editSectionName.trim().toUpperCase() });
+    updateItem<SectionData>(SECTIONS_KEY, editingSection.id, { sectionName: editSectionName.trim().toUpperCase() });
     toast.success('Section updated');
     setIsEditSectionOpen(false);
     refreshData();
@@ -246,7 +265,7 @@ export default function BatchesClasses() {
   };
 
   const filteredBatches = batches.filter(batch => 
-    batch.label.toLowerCase().includes(searchTerm.toLowerCase())
+    (batch.label || batch.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

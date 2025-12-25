@@ -536,10 +536,10 @@ export default function ManageStudents() {
                       ))}
                       {batches.length === 0 && (
                         <>
-                          <SelectItem value="2021-2025">2021-2025</SelectItem>
-                          <SelectItem value="2022-2026">2022-2026</SelectItem>
-                          <SelectItem value="2023-2027">2023-2027</SelectItem>
                           <SelectItem value="2024-2028">2024-2028</SelectItem>
+                          <SelectItem value="2023-2027">2023-2027</SelectItem>
+                          <SelectItem value="2022-2026">2022-2026</SelectItem>
+                          <SelectItem value="2021-2025">2021-2025</SelectItem>
                         </>
                       )}
                     </>

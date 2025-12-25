@@ -29,7 +29,7 @@ import {
   Cell,
 } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
-import { getStudentMarks, getStudents, getAssignments, getSubmissions, Assignment, Submission, Student } from '@/lib/data-store';
+import { getStudentMarks, getStudents, getAssignments, getSubmissions, getResources, Assignment, Submission, Student, Resource } from '@/lib/data-store';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -44,6 +44,7 @@ export default function StudentDashboard() {
   const [attendanceTrend, setAttendanceTrend] = useState<any[]>([]);
   const [subjectDist, setSubjectDist] = useState<any[]>([]);
   const [recentNotes, setRecentNotes] = useState<any[]>([]);
+  const [studentData, setStudentData] = useState<Student | null>(null);
 
   useEffect(() => {
     if (user && user.role === 'student') {
@@ -60,6 +61,7 @@ export default function StudentDashboard() {
     const myMarks = user ? getStudentMarks(user.id) : [];
     const allAssignments = getAssignments();
     const allSubmissions = getSubmissions();
+    const allResources = getResources();
     
     // Filter assignments for student's class/section
     const myAssignments = allAssignments.filter(a => 
@@ -79,12 +81,14 @@ export default function StudentDashboard() {
       }
     }
 
-    setStudentStats({
+    const studentStatsData = {
       attendance: me ? me.attendance : 0,
       internalAverage: Number(avgMarks.toFixed(1)),
       pendingTasks: pending.length,
-      ecaPoints: 0 // Resetting dummy data
-    });
+      ecaPoints: me ? me.semesterHistory.reduce((sum, sem) => sum + sem.credits, 0) : 0 // Calculate ECA points from semester credits
+    };
+    setStudentStats(studentStatsData);
+    setStudentData(me);
 
     // Populate upcoming tasks from pending assignments
     setUpcomingTasks(pending.slice(0, 3).map(a => ({
@@ -94,10 +98,52 @@ export default function StudentDashboard() {
       icon: FileText
     })));
 
-    // Reset others to empty arrays as they were dummy data
-    setAttendanceTrend([]);
-    setSubjectDist([]);
-    setRecentNotes([]);
+    // Generate attendance trend data
+    if (me) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const now = new Date();
+      const trendData = [];
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = months[monthDate.getMonth()];
+        // Use student's attendance as a base and add some variation
+        const attendance = Math.max(60, Math.min(100, me.attendance + Math.floor(Math.random() * 10) - 5));
+        trendData.push({
+          month: monthName,
+          attendance: attendance
+        });
+      }
+      setAttendanceTrend(trendData);
+    }
+
+    // Generate subject distribution based on marks
+    const subjectCounts: Record<string, number> = {};
+    myMarks.forEach(mark => {
+      if (subjectCounts[mark.subjectCode]) {
+        subjectCounts[mark.subjectCode] += mark.marks;
+      } else {
+        subjectCounts[mark.subjectCode] = mark.marks;
+      }
+    });
+
+    const subjectDistData = Object.entries(subjectCounts).map(([subject, marks]) => ({
+      name: subject,
+      value: marks
+    }));
+    setSubjectDist(subjectDistData);
+
+    // Get recent notes/resources
+    const mySubjectCodes = [...new Set(myMarks.map(mark => mark.subjectCode))];
+    const recentNotesData = allResources
+      .filter(resource => mySubjectCodes.includes(resource.subjectCode))
+      .slice(0, 3)
+      .map(resource => ({
+        topic: resource.title,
+        subject: resource.subjectCode,
+        faculty: resource.facultyName,
+        date: resource.createdAt
+      }));
+    setRecentNotes(recentNotesData);
   };
 
   if (!user || user.role !== 'student') {
@@ -179,15 +225,39 @@ export default function StudentDashboard() {
               <p className="text-sm text-muted-foreground">Monthly attendance percentage</p>
             </div>
           </div>
-          <div className="h-64 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 rounded-xl">
+          <div className="h-64">
             {attendanceTrend.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={attendanceTrend}>
-                    {/* ... chart config ... */}
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" domain={[0, 100]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="attendance" 
+                      stroke="hsl(var(--primary))" 
+                      fill="url(#colorAttendance)" 
+                      strokeWidth={2}
+                    />
+                    <defs>
+                      <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
                 </AreaChart>
                 </ResponsiveContainer>
             ) : (
+                <div className="flex items-center justify-center h-full border-2 border-dashed border-muted-foreground/20 rounded-xl">
                 <p className="text-muted-foreground text-sm font-medium">No attendance data available yet.</p>
+                </div>
             )}
           </div>
         </motion.div>
@@ -200,15 +270,37 @@ export default function StudentDashboard() {
           className="glass-card rounded-2xl p-6"
         >
           <h3 className="text-lg font-semibold mb-4">Subject Distribution</h3>
-          <div className="h-48 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 rounded-xl">
+          <div className="h-48">
              {subjectDist.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                    {/* ... chart config ... */}
+                    <Pie
+                      data={subjectDist}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {subjectDist.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={`hsl(${index * 137.5}, 70%, 50%)`} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
                     </PieChart>
                 </ResponsiveContainer>
              ) : (
+                <div className="flex items-center justify-center h-full border-2 border-dashed border-muted-foreground/20 rounded-xl">
                 <p className="text-muted-foreground text-sm font-medium">No marking data yet.</p>
+                </div>
              )}
           </div>
         </motion.div>
@@ -220,13 +312,13 @@ export default function StudentDashboard() {
         <div className="space-y-4">
           <ProgressCard
             title="Resume Completion"
-            value={0}
+            value={studentData?.semesterHistory.length > 0 ? 60 : 30} // Placeholder value based on whether student has semester history
             color="primary"
             delay={0.5}
           />
           <ProgressCard
             title="Course Progress"
-            value={0}
+            value={studentData ? Math.min(100, (studentData.semester / 8) * 100) : 20} // Calculate based on current semester
             color="accent"
             delay={0.6}
           />

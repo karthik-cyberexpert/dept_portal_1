@@ -281,7 +281,10 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-semibold">Institution Overview</h3>
               <p className="text-sm text-muted-foreground">Student & Faculty trends</p>
             </div>
-            <Button variant="outline" size="sm">Export Report</Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              // In a real application, this would export the report
+              alert('Report export functionality would be implemented here');
+            }}>Export Report</Button>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -360,7 +363,7 @@ export default function AdminDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Marks Approval Queue</h3>
-            <Button variant="gradient" size="sm" onClick={() => navigate('/admin/marks')}>Approve All</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/marks')}>View All</Button>
           </div>
           <div className="space-y-3">
             {marksApprovalQueue.length > 0 ? marksApprovalQueue.map((item, index) => (
@@ -383,7 +386,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="success" size="sm" onClick={() => navigate('/admin/marks')}>
+                  <Button variant="success" size="sm" onClick={() => navigate(`/admin/marks?subject=${item.subject}&exam=${item.exam}`)}>
                     <CheckCircle className="w-4 h-4 mr-1" />
                     Approve
                   </Button>
@@ -404,7 +407,7 @@ export default function AdminDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Recent Activities</h3>
-            <Button variant="ghost" size="sm">View All</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/settings')}>View All</Button>
           </div>
           <div className="space-y-4">
             {recentActivities.length > 0 ? recentActivities.map((activity, index) => {

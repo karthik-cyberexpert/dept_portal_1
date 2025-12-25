@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, Mail, Phone, MapPin, Building2, Calendar,
@@ -23,23 +23,102 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFaculty, getStudents, getTutors, Faculty, Student, Tutor } from '@/lib/data-store';
 
 export default function Profile() {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: 'Dr. Admin Kumar',
-    email: 'admin@college.edu',
-    phone: '+91 98765 43210',
-    designation: 'Head of Department',
-    department: 'Computer Science and Engineering',
-    employeeId: 'EMP001',
-    joinDate: '2010-06-15',
-    qualification: 'Ph.D. in Computer Science',
-    specialization: 'Machine Learning & AI',
-    address: 'Tamil Nadu Engineering College, Chennai - 600001',
-    bio: 'Experienced academician with over 15 years in teaching and research. Published 50+ papers in international journals. Currently serving as the Head of Department for Computer Science and Engineering.',
+    name: '',
+    email: '',
+    phone: '',
+    designation: '',
+    department: '',
+    employeeId: '',
+    joinDate: '',
+    qualification: '',
+    specialization: '',
+    address: '',
+    bio: '',
   });
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        // For admin, use default admin profile data
+        setProfile({
+          name: user.name,
+          email: user.email,
+          phone: '+91 98765 43210', // Default admin phone
+          designation: 'Administrator',
+          department: user.department || 'Administration',
+          employeeId: 'ADMIN001',
+          joinDate: '2010-06-15',
+          qualification: 'System Administrator',
+          specialization: 'System Management',
+          address: 'Tamil Nadu Engineering College, Chennai - 600001',
+          bio: 'System Administrator with extensive experience in managing educational systems. Currently serving as the Administrator for the Academic Management System.',
+        });
+      } else if (user.role === 'faculty') {
+        // For faculty, fetch real faculty data
+        const facultyList = getFaculty();
+        const faculty = facultyList.find(f => f.email === user.email);
+        if (faculty) {
+          setProfile({
+            name: faculty.name,
+            email: faculty.email,
+            phone: faculty.phone,
+            designation: faculty.designation,
+            department: faculty.specialization,
+            employeeId: faculty.employeeId,
+            joinDate: faculty.dateOfJoining,
+            qualification: faculty.qualification,
+            specialization: faculty.specialization,
+            address: faculty.address,
+            bio: `Experienced academician with ${faculty.experience} years in teaching and research. Currently serving as a ${faculty.designation} for ${faculty.specialization}.`,
+          });
+        }
+      } else if (user.role === 'tutor') {
+        // For tutor, fetch real tutor data
+        const tutorList = getTutors();
+        const tutor = tutorList.find(t => t.email === user.email);
+        if (tutor) {
+          setProfile({
+            name: tutor.name,
+            email: tutor.email,
+            phone: tutor.phone,
+            designation: tutor.designation,
+            department: 'Class In-Charge',
+            employeeId: tutor.id,
+            joinDate: '2020-01-01', // Default date
+            qualification: 'Class Management',
+            specialization: `Tutor for Batch ${tutor.batch}, Section ${tutor.section}`,
+            address: 'Tamil Nadu Engineering College, Chennai - 600001',
+            bio: `Class In-Charge for Batch ${tutor.batch}, Section ${tutor.section} with responsibility for student mentoring and academic guidance.`,
+          });
+        }
+      } else if (user.role === 'student') {
+        // For student, fetch real student data
+        const studentList = getStudents();
+        const student = studentList.find(s => s.email === user.email);
+        if (student) {
+          setProfile({
+            name: student.name,
+            email: student.email,
+            phone: student.phone,
+            designation: 'Student',
+            department: student.programme,
+            employeeId: student.rollNumber,
+            joinDate: student.createdAt.split('T')[0],
+            qualification: 'Undergraduate Student',
+            specialization: student.class,
+            address: student.address,
+            bio: `Student enrolled in ${student.programme} program. Currently in ${student.year} year, ${student.semester} semester, Section ${student.section}.`,
+          });
+        }
+      }
+    }
+  }, [user]);
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
@@ -48,20 +127,77 @@ export default function Profile() {
     toast.success('Profile updated successfully!');
   };
 
-  const recentActivities = [
-    { action: 'Approved marks for CS301', time: '2 hours ago', type: 'approval' },
-    { action: 'Published new circular', time: '5 hours ago', type: 'circular' },
-    { action: 'Added new faculty member', time: '1 day ago', type: 'user' },
-    { action: 'Updated semester dates', time: '2 days ago', type: 'settings' },
-    { action: 'Reviewed ECA submission', time: '3 days ago', type: 'approval' },
-  ];
+  // Generate recent activities based on user role
+  const recentActivities = [];
+  if (user) {
+    if (user.role === 'admin') {
+      recentActivities.push(
+        { action: 'Approved marks for CS301', time: '2 hours ago', type: 'approval' },
+        { action: 'Published new circular', time: '5 hours ago', type: 'circular' },
+        { action: 'Added new faculty member', time: '1 day ago', type: 'user' },
+        { action: 'Updated semester dates', time: '2 days ago', type: 'settings' },
+        { action: 'Reviewed ECA submission', time: '3 days ago', type: 'approval' },
+      );
+    } else if (user.role === 'faculty') {
+      recentActivities.push(
+        { action: 'Updated marks for CS201', time: '1 hour ago', type: 'marks' },
+        { action: 'Uploaded notes for CS201', time: '3 hours ago', type: 'notes' },
+        { action: 'Created assignment for CS201', time: '1 day ago', type: 'assignment' },
+        { action: 'Updated class attendance', time: '2 days ago', type: 'attendance' },
+        { action: 'Reviewed student submissions', time: '3 days ago', type: 'review' },
+      );
+    } else if (user.role === 'tutor') {
+      recentActivities.push(
+        { action: 'Verified marks for CS301', time: '2 hours ago', type: 'approval' },
+        { action: 'Updated student attendance', time: '4 hours ago', type: 'attendance' },
+        { action: 'Reviewed leave request', time: '1 day ago', type: 'leave' },
+        { action: 'Updated class schedule', time: '2 days ago', type: 'schedule' },
+        { action: 'Reviewed student performance', time: '3 days ago', type: 'review' },
+      );
+    } else if (user.role === 'student') {
+      recentActivities.push(
+        { action: 'Submitted assignment for CS201', time: '1 hour ago', type: 'assignment' },
+        { action: 'Checked marks for CS201', time: '3 hours ago', type: 'marks' },
+        { action: 'Downloaded notes for CS201', time: '1 day ago', type: 'notes' },
+        { action: 'Updated profile information', time: '2 days ago', type: 'profile' },
+        { action: 'Applied for leave', time: '3 days ago', type: 'leave' },
+      );
+    }
+  }
 
-  const stats = [
-    { label: 'Years of Service', value: '14', icon: Calendar },
-    { label: 'Papers Published', value: '52', icon: BookOpen },
-    { label: 'Students Mentored', value: '500+', icon: User },
-    { label: 'Awards Received', value: '8', icon: Award },
-  ];
+  // Generate stats based on user role
+  const stats = [];
+  if (user) {
+    if (user.role === 'admin') {
+      stats.push(
+        { label: 'Years of Service', value: '14', icon: Calendar },
+        { label: 'Papers Published', value: '52', icon: BookOpen },
+        { label: 'Students Mentored', value: '500+', icon: User },
+        { label: 'Awards Received', value: '8', icon: Award },
+      );
+    } else if (user.role === 'faculty') {
+      stats.push(
+        { label: 'Years of Service', value: profile.joinDate ? (new Date().getFullYear() - new Date(profile.joinDate).getFullYear()).toString() : '5', icon: Calendar },
+        { label: 'Classes Handled', value: '4', icon: BookOpen },
+        { label: 'Students Taught', value: '120+', icon: User },
+        { label: 'Research Papers', value: '12', icon: Award },
+      );
+    } else if (user.role === 'tutor') {
+      stats.push(
+        { label: 'Students Mentored', value: '60', icon: User },
+        { label: 'Classes Supervised', value: '4', icon: BookOpen },
+        { label: 'Batch Year', value: profile.specialization?.includes('20') ? profile.specialization.split(' ')[1] : '2024', icon: Calendar },
+        { label: 'Section', value: profile.specialization?.includes('Section') ? profile.specialization.split(' ')[3] : 'A', icon: Award },
+      );
+    } else if (user.role === 'student') {
+      stats.push(
+        { label: 'Semester', value: profile.specialization?.includes('Semester') ? profile.specialization.split(' ')[1] : '5', icon: Calendar },
+        { label: 'CGPA', value: profile.bio.includes('CGPA') ? profile.bio.split('CGPA: ')[1].split(' ')[0] : '8.5', icon: BookOpen },
+        { label: 'Attendance', value: profile.bio.includes('Attendance') ? profile.bio.split('Attendance: ')[1].split('%')[0] : '92%', icon: User },
+        { label: 'Backlogs', value: '0', icon: Award },
+      );
+    }
+  }
 
   return (
     <div className="space-y-6">
