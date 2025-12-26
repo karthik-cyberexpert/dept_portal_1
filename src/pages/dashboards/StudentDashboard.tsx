@@ -29,10 +29,12 @@ import {
   Cell,
 } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
-import { getStudentMarks, getStudents, getAssignments, getSubmissions, getResources, Assignment, Submission, Student, Resource } from '@/lib/data-store';
+import { getStudentMarks, getStudents, getAssignments, getSubmissions, getResources, getCirculars, Assignment, Submission, Student, Resource, Circular } from '@/lib/data-store';
+import { useNavigate } from 'react-router-dom';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [studentStats, setStudentStats] = useState({
     attendance: 0,
     internalAverage: 0,
@@ -43,7 +45,7 @@ export default function StudentDashboard() {
   const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
   const [attendanceTrend, setAttendanceTrend] = useState<any[]>([]);
   const [subjectDist, setSubjectDist] = useState<any[]>([]);
-  const [recentNotes, setRecentNotes] = useState<any[]>([]);
+  const [recentUpdates, setRecentUpdates] = useState<Circular[]>([]);
   const [studentData, setStudentData] = useState<Student | null>(null);
 
   useEffect(() => {
@@ -132,18 +134,13 @@ export default function StudentDashboard() {
     }));
     setSubjectDist(subjectDistData);
 
-    // Get recent notes/resources
-    const mySubjectCodes = [...new Set(myMarks.map(mark => mark.subjectCode))];
-    const recentNotesData = allResources
-      .filter(resource => mySubjectCodes.includes(resource.subjectCode))
-      .slice(0, 3)
-      .map(resource => ({
-        topic: resource.title,
-        subject: resource.subjectCode,
-        faculty: resource.facultyName,
-        date: resource.createdAt
-      }));
-    setRecentNotes(recentNotesData);
+    // Get recent updates/circulars
+    const allCirculars = getCirculars();
+    const myUpdates = allCirculars
+        .filter(c => c.audience === 'all' || c.audience === 'students')
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 3);
+    setRecentUpdates(myUpdates);
   };
 
   if (!user || user.role !== 'student') {
@@ -168,7 +165,7 @@ export default function StudentDashboard() {
           <h1 className="text-3xl font-bold">Welcome back, {user.name.split(' ')[0]}! 👋</h1>
           <p className="text-muted-foreground">Here's your academic overview for today</p>
         </div>
-        <Button variant="gradient" className="w-fit">
+        <Button onClick={() => navigate('/student/timetable')} variant="gradient" className="w-fit">
           <Calendar className="w-4 h-4 mr-2" />
           View Timetable
         </Button>
@@ -317,8 +314,8 @@ export default function StudentDashboard() {
             delay={0.5}
           />
           <ProgressCard
-            title="Course Progress"
-            value={studentData ? Math.min(100, (studentData.semester / 8) * 100) : 20} // Calculate based on current semester
+            title="ECA Analytics"
+            value={studentStats.ecaPoints > 100 ? 100 : studentStats.ecaPoints} // Cap at 100 or use specific target logic
             color="accent"
             delay={0.6}
           />
@@ -366,7 +363,7 @@ export default function StudentDashboard() {
           </div>
         </motion.div>
 
-        {/* Recent Notes */}
+        {/* Recent Updates */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -374,11 +371,11 @@ export default function StudentDashboard() {
           className="glass-card rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Recent Notes</h3>
-            <Button variant="ghost" size="sm">View All</Button>
+            <h3 className="text-lg font-semibold">Recent Updates</h3>
+            <Button onClick={() => navigate('/student/circulars')} variant="ghost" size="sm">View All</Button>
           </div>
           <div className="space-y-3">
-            {recentNotes.length > 0 ? recentNotes.map((note, index) => (
+            {recentUpdates.length > 0 ? recentUpdates.map((update, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: -20 }}
@@ -386,16 +383,18 @@ export default function StudentDashboard() {
                 transition={{ delay: 0.7 + index * 0.1 }}
                 className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
               >
-                <div className="w-10 h-10 rounded-lg bg-accent/10 text-accent flex items-center justify-center">
-                  <BookOpen className="w-5 h-5" />
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    update.priority === 'high' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
+                }`}>
+                  <AlertCircle className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{note.topic}</p>
-                  <p className="text-xs text-muted-foreground">{note.subject} • {note.faculty}</p>
+                  <p className="text-sm font-medium truncate">{update.title}</p>
+                  <p className="text-xs text-muted-foreground">{update.category} • {update.date}</p>
                 </div>
               </motion.div>
             )) : (
-                <p className="text-muted-foreground text-sm text-center py-10">No notes uploaded.</p>
+                <p className="text-muted-foreground text-sm text-center py-10">No recent updates.</p>
             )}
           </div>
         </motion.div>
@@ -419,11 +418,11 @@ export default function StudentDashboard() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="glass" className="bg-white/20 hover:bg-white/30 text-white border-0">
+            <Button onClick={() => navigate('/student/eca')} variant="glass" className="bg-white/20 hover:bg-white/30 text-white border-0">
               <Sparkles className="w-4 h-4 mr-2" />
               Add Achievement
             </Button>
-            <Button variant="glass" className="bg-white/20 hover:bg-white/30 text-white border-0">
+            <Button onClick={() => navigate('/student/resume')} variant="glass" className="bg-white/20 hover:bg-white/30 text-white border-0">
               Build Resume
             </Button>
           </div>

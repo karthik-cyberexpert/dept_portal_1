@@ -39,7 +39,10 @@ import TimetableFaculty from "@/pages/faculty/Timetable";
 import MarksEntryFaculty from "@/pages/faculty/MarksEntry";
 import NotesUploadFaculty from "@/pages/faculty/NotesUpload";
 import AssignmentsFaculty from "@/pages/faculty/Assignments";
+import MarksEntry from "@/pages/faculty/MarksEntry";
+import MarksEntrySheet from "@/pages/faculty/MarksEntrySheet";
 import CircularsFaculty from "@/pages/faculty/Circulars";
+import StudentsFaculty from "@/pages/faculty/Students";
 
 // Tutor Pages
 import TutorDashboard from "@/pages/dashboards/TutorDashboard";
@@ -120,7 +123,7 @@ const App = () => {
               <Route
                 path="/faculty"
                 element={
-                  <ProtectedRoute allowedRoles={['faculty']}>
+                  <ProtectedRoute allowedRoles={['faculty', 'tutor']}>
                     <DashboardLayout />
                   </ProtectedRoute>
                 }
@@ -133,6 +136,9 @@ const App = () => {
                 <Route path="notes" element={<NotesUploadFaculty />} />
                 <Route path="assignments" element={<AssignmentsFaculty />} />
                 <Route path="circulars" element={<CircularsFaculty />} />
+                <Route path="students" element={<StudentsFaculty />} />
+                <Route path="marks/entry" element={<MarksEntry />} />
+                <Route path="marks/sheet" element={<MarksEntrySheet />} />
               </Route>
               
                 {/* Tutor Routes */}

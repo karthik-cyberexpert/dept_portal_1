@@ -151,7 +151,7 @@ export default function NotesUpload() {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Class / Section</Label>
+                            <Label>Batch / Section</Label>
                             <Select value={newResource.classId} onValueChange={v => setNewResource({...newResource, classId: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -163,15 +163,34 @@ export default function NotesUpload() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                            <Label>Resource Type</Label>
-                            <Select value={newResource.type} onValueChange={(v: any) => setNewResource({...newResource, type: v})}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Note">Lecture Notes</SelectItem>
-                                    <SelectItem value="QP">Question Paper</SelectItem>
-                                    <SelectItem value="Manual">Lab Manual</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <Label>Resource Type</Label>
+                        <Select value={newResource.type} onValueChange={(v: any) => setNewResource({...newResource, type: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Note">Lecture Notes</SelectItem>
+                                <SelectItem value="QP">Question Paper</SelectItem>
+                                <SelectItem value="Manual">Lab Manual</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Upload File</Label>
+                         <div className="flex items-center gap-2">
+                            <Input 
+                                type="file" 
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                                className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        // Mock handling - just logging for now as requested
+                                        console.log("Selected file:", file.name);
+                                        toast.success(`File selected: ${file.name}`);
+                                    }
+                                }}
+                            />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Supported format: .pdf, .docs, .xlsx, .jpg, .png</p>
                     </div>
                 </div>
                 <DialogFooter>
@@ -225,7 +244,7 @@ export default function NotesUpload() {
                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input 
-                     placeholder="Search by title, subject or class..." 
+                     placeholder="Search by title, subject or batch..." 
                      className="pl-10 rounded-2xl bg-white/5 border-white/10"
                      value={searchTerm}
                      onChange={(e) => setSearchTerm(e.target.value)}

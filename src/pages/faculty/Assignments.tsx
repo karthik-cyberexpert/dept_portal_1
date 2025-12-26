@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from '@/contexts/AuthContext';
 import { getAssignments, addAssignment, getSubmissions, Assignment, getFaculty, getStudents } from '@/lib/data-store';
 import { toast } from 'sonner';
@@ -34,6 +35,9 @@ export default function Assignments() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [submissions, setSubmissions] = useState<any[]>([]);
 
+  // View configuration
+  const [viewMode, setViewMode] = useState<'current' | 'history'>('current');
+
   // Form State
   const [newAssignment, setNewAssignment] = useState({
     title: '',
@@ -43,7 +47,8 @@ export default function Assignments() {
     sectionId: '',
     dueDate: '',
     maxMarks: 100,
-    description: ''
+    description: '',
+    enableAlert: false
   });
 
   const loadData = () => {
@@ -84,9 +89,13 @@ export default function Assignments() {
         status: 'active'
     });
     
+    if (newAssignment.enableAlert) {
+        toast.info("Alert sent to students!");
+    }
+
     toast.success('Assignment created successfully');
     setIsCreateOpen(false);
-    setNewAssignment({ title: '', subject: '', subjectCode: '', classId: '', sectionId: '', dueDate: '', maxMarks: 100, description: '' });
+    setNewAssignment({ title: '', subject: '', subjectCode: '', classId: '', sectionId: '', dueDate: '', maxMarks: 100, description: '', enableAlert: false });
     loadData();
   };
 
@@ -109,15 +118,34 @@ export default function Assignments() {
 
   return (
     <div className="space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Assignment Management 📝</h1>
-          <p className="text-muted-foreground mt-1 font-medium">Create, track and evaluate student submissions</p>
-        </div>
+      <div className="flex flex-col gap-6">
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+        >
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">Assignment Management 📝</h1>
+            <p className="text-muted-foreground mt-1 font-medium">Create, track and evaluate student submissions</p>
+          </div>
+          
+          <div className="flex bg-muted/30 p-1 rounded-xl self-start md:self-auto">
+             <button
+               onClick={() => setViewMode('current')}
+               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'current' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+             >
+               Current Semester
+             </button>
+             <button
+               onClick={() => setViewMode('history')}
+               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'history' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+             >
+               History
+             </button>
+          </div>
+        </motion.div>
+      
+        <div className="flex justify-end">
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -163,9 +191,9 @@ export default function Assignments() {
                         />
                     </div>
                     <div>
-                        <Label>Class</Label>
+                        <Label>Batch</Label>
                         <Select onValueChange={v => setNewAssignment({...newAssignment, classId: v})}>
-                            <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Batch" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="CSE">CSE</SelectItem>
                                 <SelectItem value="ECE">ECE</SelectItem>
@@ -199,6 +227,16 @@ export default function Assignments() {
                             placeholder="Detailed instructions..."
                         />
                     </div>
+                    <div className="md:col-span-2 flex items-center space-x-2">
+                        <Checkbox 
+                            id="enableAlert" 
+                            checked={newAssignment.enableAlert}
+                            onCheckedChange={(checked) => setNewAssignment({...newAssignment, enableAlert: checked as boolean})}
+                        />
+                        <Label htmlFor="enableAlert" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            Enable Alert (Notify students immediately)
+                        </Label>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
@@ -206,7 +244,8 @@ export default function Assignments() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-      </motion.div>
+      </div>
+    </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="glass-card p-6 border-none shadow-xl bg-gradient-to-br from-primary/5 to-transparent">
@@ -259,7 +298,23 @@ export default function Assignments() {
          </div>
 
          <div className="grid grid-cols-1 gap-4">
-            {assignments.filter(a => a.title.toLowerCase().includes(searchTerm.toLowerCase())).map((assignment, idx) => {
+            {assignments.filter(a => {
+                 const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase());
+                 
+                 // View Mode Logic (Mock: 6 months threshold or just past/future)
+                 // Let's use a simpler logic for demo: History = Due Date > 6 months ago? 
+                 // Or better match Admin: Active vs Archive. 
+                 // Since we don't have "Archive" status, let's use Date.
+                 const dueDate = new Date(a.dueDate);
+                 const today = new Date();
+                 const sixMonthsAgo = new Date();
+                 sixMonthsAgo.setMonth(today.getMonth() - 6);
+                 
+                 const isHistory = dueDate < sixMonthsAgo;
+                 const matchesView = viewMode === 'current' ? !isHistory : isHistory;
+
+                 return matchesSearch && matchesView;
+            }).map((assignment, idx) => {
                const assignmentSubmissions = submissions.filter(s => s.assignmentId === assignment.id);
                // Assuming logic to get total students class size, for now hardcoded or fetched
                const totalStudents = 60; // Should fetch class size from student data
@@ -297,7 +352,7 @@ export default function Assignments() {
                                <span>Submission Rate</span>
                                <span className="text-primary">{Math.round((subCount/totalStudents)*100)}%</span>
                             </div>
-                            <Progress value={(subCount/totalStudents)*100} className="h-1.5 bg-primary/10" indicatorClassName="bg-primary" />
+                            <Progress value={evaluationRate} className="h-2" />
                             <p className="text-right text-[10px] font-bold text-muted-foreground">{subCount} / {totalStudents} Students</p>
                          </div>
  

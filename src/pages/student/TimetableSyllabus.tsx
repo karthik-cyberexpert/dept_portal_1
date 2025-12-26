@@ -2,28 +2,51 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
-  Clock, 
   MapPin, 
   User, 
   BookOpen, 
   Download, 
-  Info, 
-  ChevronRight,
-  ChevronDown,
-  CheckCircle2
+  CheckCircle2,
+  Building,
+  Eye
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getTimetable, getSyllabus, getStudents, TimetableSlot, Syllabus } from '@/lib/data-store';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const periods = [
+  { num: 1, time: '8:30 - 9:15' },
+  { num: 2, time: '9:15 - 10:20' },
+  { num: 'BREAK', time: '10:20 - 10:30', isBreak: true, label: 'Short Break' },
+  { num: 3, time: '10:30 - 11:25' },
+  { num: 4, time: '11:25 - 12:20' },
+  { num: 'LUNCH', time: '12:20 - 1:20', isBreak: true, label: 'Lunch Break' },
+  { num: 5, time: '1:20 - 2:15' },
+  { num: 6, time: '2:15 - 3:10' },
+  { num: 7, time: '3:10 - 4:05' },
+];
+
+const getSlotColor = (type: string) => {
+  switch (type) {
+    case 'theory': return 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 hover:border-blue-400';
+    case 'lab': return 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 hover:border-purple-400';
+    case 'tutorial': return 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30 hover:border-amber-400';
+    case 'free': return 'bg-gradient-to-br from-gray-500/10 to-gray-600/10 border-gray-500/20';
+    default: return 'bg-muted';
+  }
+};
 
 export default function TimetableSyllabus() {
   const { user } = useAuth();
-  const [timetable, setTimetable] = useState<any[]>([]);
+  const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
   const [syllabus, setSyllabus] = useState<Syllabus[]>([]);
-  const [selectedDay, setSelectedDay] = useState('Mon');
 
   useEffect(() => {
     if (!user) return;
@@ -31,56 +54,25 @@ export default function TimetableSyllabus() {
     const student = allStudents.find(s => s.id === user.id || s.email === user.email);
     
     if (student) {
-        // Fetch Timetable
+        setSyllabus(getSyllabus()); // Fetch all for now
         const allSlots = getTimetable();
-        // Assuming student.class matches batch or classId used in timetable
         const mySlots = allSlots.filter(s => 
             (s.classId === student.batch || s.classId === student.year.toString()) && 
             s.sectionId === student.section
         );
-        
-        // Transform for display based on selected day
-        // Need to re-trigger this when selectedDay changes
-        updateTimetableDisplay(mySlots, selectedDay);
-
-        // Fetch Syllabus
-        // Syllabus is by subject. We need subjects for this student.
-         // In a real app we'd get subjects from curriculum. Here we infer from timetable or just get all for now for demo
-        const allSyllabus = getSyllabus();
-        setSyllabus(allSyllabus); // Ideally filter by semester/year
+        setTimetable(mySlots);
     }
-  }, [user, selectedDay]); // added selectedDay dependency to re-filter
+  }, [user]);
 
-  const updateTimetableDisplay = (slots: TimetableSlot[], dayShort: string) => {
-      // Map short day to full day
-      const dayMap: any = { 'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday', 'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday', 'Sun': 'Sunday' };
-      const fullDay = dayMap[dayShort];
-      
-      const daysSlots = slots.filter(s => s.day === fullDay).sort((a, b) => a.period - b.period);
-      
-      const mapped = daysSlots.map(s => ({
-          time: getTimeFromPeriod(s.period), // Helper needed
-          subject: s.subject,
-          room: s.room,
-          faculty: s.facultyName,
-          type: s.type, // theory/lab
-          color: getSubjectColor(s.subject), // Helper
-          avatar: '' 
-      }));
-      setTimetable(mapped);
+  const getSlot = (day: string, period: number | string) => {
+    return timetable.find(slot => slot.day === day && slot.period === period);
   };
 
-  const getTimeFromPeriod = (p: number) => {
-      const times = ['09:00 - 09:50', '09:50 - 10:40', '10:50 - 11:40', '11:40 - 12:30', '01:30 - 02:20', '02:20 - 03:10', '03:10 - 04:10', '04:10 - 05:00'];
-      return times[p-1] || 'Unknown';
-  };
-
-  const getSubjectColor = (subject: string) => {
-      // Consistent coloring
-      const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500'];
-      let hash = 0;
-      for (let i = 0; i < subject.length; i++) hash = subject.charCodeAt(i) + ((hash << 5) - hash);
-      return colors[Math.abs(hash) % colors.length];
+  const hasSameContent = (day: string, p1: number | string, p2: number | string) => {
+    const s1 = getSlot(day, p1);
+    const s2 = getSlot(day, p2);
+    if (!s1 || !s2) return false;
+    return s1.subject === s2.subject && s1.type === s2.type && s1.subjectCode === s2.subjectCode;
   };
 
   return (
@@ -91,7 +83,9 @@ export default function TimetableSyllabus() {
         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold">Timetable & Syllabus</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+             Timetable & Syllabus
+          </h1>
           <p className="text-muted-foreground">Manage your weekly schedule and track course progress</p>
         </div>
       </motion.div>
@@ -103,147 +97,239 @@ export default function TimetableSyllabus() {
         </TabsList>
 
         <TabsContent value="timetable" className="space-y-6 outline-none">
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-2 mb-6">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => (
-              <Button 
-                key={idx} 
-                variant={selectedDay === day ? 'default' : 'outline'} 
-                className={`rounded-xl ${day === 'Sun' ? 'opacity-50' : ''}`}
-                onClick={() => setSelectedDay(day)}
-              >
-                {day}
-              </Button>
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            {timetable.length > 0 ? timetable.map((session, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="group relative flex flex-col md:flex-row md:items-center gap-6 p-5 glass-card rounded-2xl border-transparent hover:border-primary/20 transition-all"
-              >
-                <div className="flex items-center gap-4 md:w-48">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">{session.time}</p>
-                    <p className={`text-[10px] font-black uppercase tracking-tighter ${
-                      session.type === 'lab' ? 'text-accent' : 'text-primary'
-                    }`}>{session.type}</p>
-                  </div>
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500/40 to-cyan-500/40 border border-blue-500/50" />
+                <span className="text-sm text-muted-foreground">Theory</span>
                 </div>
-
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold group-hover:text-primary transition-colors flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${session.color}`} />
-                    {session.subject}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-4 mt-1">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {session.room}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Avatar className="w-5 h-5">
-                        <AvatarImage src={session.avatar} />
-                        <AvatarFallback><User className="w-3 h-3" /></AvatarFallback>
-                      </Avatar>
-                      {session.faculty}
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-500/40 to-pink-500/40 border border-purple-500/50" />
+                <span className="text-sm text-muted-foreground">Lab</span>
                 </div>
-
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Info className="w-5 h-5" />
-                  </Button>
+                <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-500/40 to-orange-500/40 border border-amber-500/50" />
+                <span className="text-sm text-muted-foreground">Tutorial</span>
                 </div>
-              </motion.div>
-            )) : (
-                <div className="text-center py-10 text-muted-foreground">No classes scheduled for this day.</div>
-            )}
-          </div>
+                <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-500/20 to-gray-600/20 border border-gray-500/30" />
+                <span className="text-sm text-muted-foreground">Free</span>
+                </div>
+            </div>
+
+            <Card className="glass-card border-white/10 overflow-hidden">
+                <CardHeader className="border-b border-white/10">
+                <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    Weekly Schedule
+                </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                <div className="overflow-hidden">
+                    <table className="w-full table-fixed">
+                        <thead>
+                            <tr className="border-b border-white/10">
+                            <th className="p-2 text-left text-sm font-semibold text-muted-foreground w-32 sticky left-0 bg-background/95 backdrop-blur z-10">
+                                <Calendar className="w-4 h-4 inline mr-2" />
+                                Day
+                            </th>
+                            {periods.map((period) => (
+                                <th 
+                                key={period.num} 
+                                className={`p-2 text-center text-sm font-semibold ${period.isBreak ? 'w-10 p-0 bg-emerald-500/20 border-b-0' : ''}`}
+                                >
+                                {!period.isBreak && (
+                                    <>
+                                    <div>{`Period ${period.num}`}</div>
+                                    <div className="text-xs font-normal text-muted-foreground">{period.time}</div>
+                                    </>
+                                )}
+                                </th>
+                            ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {days.map((day, dayIndex) => (
+                            <tr key={day} className="border-b border-white/5">
+                                <td className="p-3 text-sm font-medium text-muted-foreground sticky left-0 bg-background/95 backdrop-blur z-10">
+                                {day}
+                                </td>
+                                {periods.map((period, index) => {
+                                // Handle Breaks - Vertical Column
+                                if (period.isBreak) {
+                                    if (dayIndex === 0) {
+                                    return (
+                                        <td 
+                                            key={`${day}-${period.num}`} 
+                                            rowSpan={days.length} 
+                                            className="p-0 bg-emerald-500/20 align-middle text-center w-10 border-x border-white/10 border-t-0"
+                                        >
+                                            <div className="h-full flex items-center justify-center writing-vertical-lr rotate-180 font-extrabold text-emerald-600 tracking-widest text-xl py-4 uppercase shadow-inner">
+                                            {period.label}
+                                            </div>
+                                        </td>
+                                    );
+                                    }
+                                    return null;
+                                }
+
+                                // Handle Saturday Constraint
+                                if (day === 'Saturday' && typeof period.num === 'number' && period.num > 4) {
+                                    return (
+                                    <td key={`${day}-${period.num}`} className="p-1 bg-white/5 opacity-50 relative">
+                                        <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground font-medium -rotate-12 select-none">
+                                            No Class
+                                        </div>
+                                    </td>
+                                    );
+                                }
+
+                                // MERGE LOGIC
+                                const prevPeriod = periods[index - 1];
+                                if (prevPeriod && !prevPeriod.isBreak && hasSameContent(day, prevPeriod.num, period.num)) {
+                                    return null;
+                                }
+
+                                let colSpan = 1;
+                                for (let k = index + 1; k < periods.length; k++) {
+                                    const nextPeriod = periods[k];
+                                    if (nextPeriod.isBreak) break; 
+                                    if (hasSameContent(day, period.num, nextPeriod.num)) {
+                                        colSpan++;
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+                                const slot = getSlot(day, period.num);
+                                return (
+                                    <td 
+                                        key={`${day}-${period.num}`} 
+                                        className="p-1"
+                                        colSpan={colSpan}
+                                    >
+                                    {slot ? (
+                                        <motion.div
+                                        whileHover={{ scale: 1.02 }}
+                                        className={`p-2 rounded-lg border transition-all cursor-default min-h-[80px] flex flex-col justify-center ${getSlotColor(slot.type)}`}
+                                        >
+                                        <div className="font-medium text-sm truncate">
+                                            {slot.subject}
+                                        </div>
+                                        {slot.subjectCode && (
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                            {slot.subjectCode}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {slot.facultyName && (
+                                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                <User className="w-3 h-3" />
+                                                {slot.facultyName.split(' ')[0]}
+                                                </div>
+                                            )}
+                                            {slot.room && (
+                                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                <Building className="w-3 h-3" />
+                                                {slot.room}
+                                                </div>
+                                            )}
+                                        </div>
+                                        </motion.div>
+                                    ) : (
+                                        <div className="h-full min-h-[80px] rounded-lg border border-dashed border-white/5 bg-white/[0.02] flex items-center justify-center opacity-50">
+                                            <span className="text-xs text-muted-foreground">Free</span>
+                                        </div>
+                                    )}
+                                    </td>
+                                );
+                                })}
+                            </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                </CardContent>
+            </Card>
         </TabsContent>
 
         <TabsContent value="syllabus" className="outline-none">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {syllabus.length > 0 ? syllabus.map((course, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.1 }}
-                className="glass-card rounded-2xl p-6 group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                    <Download className="w-5 h-5" />
-                  </Button>
-                </div>
+          <Card className="glass-card border-white/10 overflow-hidden">
+             <CardHeader className="border-b border-white/10">
+                <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    Course Syllabus
+                </CardTitle>
+             </CardHeader>
+             <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="border-white/10 hover:bg-white/5">
+                            <TableHead className="w-[80px]">S.No</TableHead>
+                            <TableHead>Subject Name</TableHead>
+                            <TableHead>Subject Code</TableHead>
+                            <TableHead>Faculty Name</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {syllabus.length > 0 ? syllabus.map((course, idx) => {
+                             // Attempt to find faculty from timetable for this subject
+                             const subjectSlots = timetable.filter(t => t.subjectCode === course.subjectCode || t.subject === course.subjectName);
+                             // Get unique faculty names
+                             const facultyNames = [...new Set(subjectSlots.map(s => s.facultyName).filter(Boolean))];
+                             const facultyDisplay = facultyNames.length > 0 ? facultyNames.join(', ') : 'Not Assigned';
 
-                <div className="space-y-1 mb-6">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{course.subjectCode}</p>
-                  <h3 className="text-xl font-bold">{course.subjectName}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{course.type}</span>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">{course.credits} Credits</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-muted-foreground uppercase tracking-tighter">Course Completion</span>
-                    <span className="text-accent">
-                        {Math.round((course.units.filter(u => u.status === 'completed').length / course.units.length) * 100) || 0}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(course.units.filter(u => u.status === 'completed').length / course.units.length) * 100}%` }}
-                      transition={{ duration: 1, delay: 0.5 + idx * 0.1 }}
-                      className="h-full bg-accent rounded-full"
-                    />
-                  </div>
-                </div>
-
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="units" className="border-none">
-                    <AccordionTrigger className="hover:no-underline py-2 text-primary font-bold text-xs">
-                      View Detailed Units
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <ul className="space-y-2 pt-2">
-                        {course.units?.map((unit, uIdx) => (
-                          <li key={uIdx} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-[11px]">
-                            <span className="font-medium">{unit.title}</span>
-                            {unit.status === 'completed' ? (
-                              <CheckCircle2 className="w-4 h-4 text-success" />
-                            ) : (
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                                unit.status === 'in-progress' ? 'bg-primary/20 text-primary animate-pulse' : 'bg-muted text-muted-foreground'
-                              }`}>
-                                {unit.status.toUpperCase()}
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </motion.div>
-            )) : (
-                <div className="col-span-2 text-center py-10 text-muted-foreground">No syllabus data available.</div>
-            )}
-          </div>
+                             return (
+                                <TableRow key={idx} className="border-white/10 hover:bg-white/5">
+                                    <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
+                                    <TableCell className="font-medium">{course.subjectName}</TableCell>
+                                    <TableCell>
+                                        <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded">
+                                            {course.subjectCode}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center text-[10px] text-accent font-bold">
+                                                {facultyDisplay !== 'Not Assigned' ? facultyDisplay.charAt(0) : '?'}
+                                            </div>
+                                            <span className="text-sm">{facultyDisplay}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                                                onClick={() => toast.success(`Viewing syllabus for ${course.subjectName}`)}
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </Button>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-accent"
+                                                onClick={() => toast.success(`Downloading syllabus for ${course.subjectName}`)}
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                             );
+                        }) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    No syllabus data available.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+             </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

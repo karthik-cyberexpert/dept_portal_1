@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Calendar as CalendarIcon, 
+  Calendar, 
   Clock, 
   MapPin, 
   User, 
@@ -9,123 +9,68 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  Building,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  getTutors, 
-  getTimetable, 
-  getSyllabus, 
-  getCirculars, 
-  getAssignments,
-  Tutor, 
-  TimetableSlot,
-  Syllabus,
-  Circular,
-  Assignment
-} from '@/lib/data-store';
+import { getTimetable, getTutors, TimetableSlot } from '@/lib/data-store';
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const timeSlots = [
-  '09:00 - 10:00',
-  '10:00 - 11:00',
-  '11:15 - 12:15',
-  '12:15 - 01:15',
-  '02:00 - 03:00',
-  '03:00 - 04:00'
+
+const periods = [
+  { num: 1, time: '8:30 - 9:15' },
+  { num: 2, time: '9:15 - 10:20' },
+  { num: 'BREAK', time: '10:20 - 10:30', isBreak: true, label: 'Short Break' },
+  { num: 3, time: '10:30 - 11:25' },
+  { num: 4, time: '11:25 - 12:20' },
+  { num: 'LUNCH', time: '12:20 - 1:20', isBreak: true, label: 'Lunch Break' },
+  { num: 5, time: '1:20 - 2:15' },
+  { num: 6, time: '2:15 - 3:10' },
+  { num: 7, time: '3:10 - 4:05' },
 ];
+
+const getSlotColor = (type: string) => {
+  switch (type) {
+    case 'theory': return 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 hover:border-blue-400';
+    case 'lab': return 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 hover:border-purple-400';
+    case 'tutorial': return 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30 hover:border-amber-400';
+    case 'free': return 'bg-gradient-to-br from-gray-500/10 to-gray-600/10 border-gray-500/20';
+    default: return 'bg-muted';
+  }
+};
 
 export default function Timetable() {
   const { user } = useAuth();
-  const [tutor, setTutor] = useState<Tutor | null>(null);
-  const [activeDay, setActiveDay] = useState('Monday');
-  const [schedule, setSchedule] = useState<Record<string, any[]>>({});
-  const [velocity, setVelocity] = useState<any[]>([]);
-  const [pulse, setPulse] = useState<any[]>([]);
+  const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
+  const [tutorInfo, setTutorInfo] = useState<{batch: string, section: string} | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    const allTutors = getTutors();
-    const currentTutor = allTutors.find(t => t.id === user.id || t.email === user.email);
-    if (!currentTutor) return;
-    setTutor(currentTutor);
-
-    // 1. Timetable
-    const allTimetable = getTimetable();
-    const mySectionTimetable = allTimetable.filter(t => t.classId === currentTutor.batch && t.sectionId === currentTutor.section);
-
-    const grouped: Record<string, any[]> = {};
-    const subjectCodesList = new Set<string>();
-
-    days.forEach(day => {
-        const daySlots = mySectionTimetable.filter(t => t.day === day).sort((a, b) => a.period - b.period);
-        const slots = Array(6).fill(null).map((_, i) => {
-            const match = daySlots.find(s => s.period === i + 1);
-            if (match) {
-                subjectCodesList.add(match.subjectCode);
-                return {
-                    subject: match.subject,
-                    code: match.subjectCode,
-                    room: match.room || 'LH-01',
-                    type: match.type || 'theory',
-                    faculty: match.facultyName,
-                    color: match.type === 'lab' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
-                };
-            }
-            if (i === 3) return { subject: 'Lunch Break', type: 'Break', color: 'bg-muted text-muted-foreground' };
-            return { subject: 'No Class', type: 'Free', color: 'bg-muted/30 text-muted-foreground' };
-        });
-        grouped[day] = slots;
-    });
-    setSchedule(grouped);
-
-    // 2. Syllabus Velocity
-    const allSyllabus = getSyllabus();
-    const mySubjectsSyllabus = allSyllabus.filter(s => subjectCodesList.has(s.subjectCode));
+    const tutors = getTutors();
+    const currentTutor = tutors.find(t => t.id === user.id || t.email === user.email);
     
-    const velocityData = mySubjectsSyllabus.map(s => {
-        const completed = s.units.filter(u => u.status === 'completed').length;
-        const total = s.units.length;
-        const prog = total > 0 ? Math.round((completed / total) * 100) : 0;
-        return {
-            sub: s.subjectName,
-            prog,
-            color: prog > 80 ? 'bg-success' : prog > 50 ? 'bg-primary' : 'bg-warning'
-        };
-    });
-    setVelocity(velocityData.length > 0 ? velocityData : [
-        { sub: 'Syllabus Data Pending', prog: 0, color: 'bg-muted' }
-    ]);
-
-    // 3. Class Pulse (Circulars + Assignments)
-    const allCirculars = getCirculars();
-    const allAssignments = getAssignments();
-    
-    const myAssignments = allAssignments.filter(a => a.classId === currentTutor.batch && a.sectionId === currentTutor.section);
-    const relevantCirculars = allCirculars.filter(c => c.audience === 'students' || c.audience === 'all');
-
-    const pulseData = [
-        ...myAssignments.map(a => ({
-            label: 'Assignment Due',
-            title: a.title,
-            date: a.dueDate,
-            color: 'text-primary'
-        })),
-        ...relevantCirculars.map(c => ({
-            label: 'Circular',
-            title: c.title,
-            date: c.date,
-            color: 'text-accent'
-        }))
-    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 3);
-    
-    setPulse(pulseData);
-
+    if (currentTutor) {
+        setTutorInfo({ batch: currentTutor.batch, section: currentTutor.section });
+        const allSlots = getTimetable();
+        const classSlots = allSlots.filter(s => s.classId === currentTutor.batch && s.sectionId === currentTutor.section);
+        setTimetable(classSlots);
+    }
   }, [user]);
+
+  const getSlot = (day: string, period: number | string) => {
+    return timetable.find(slot => slot.day === day && slot.period === period);
+  };
+
+  const hasSameContent = (day: string, p1: number | string, p2: number | string) => {
+    const s1 = getSlot(day, p1);
+    const s2 = getSlot(day, p2);
+    if (!s1 || !s2) return false;
+    return s1.subject === s2.subject && s1.type === s2.type && s1.subjectCode === s2.subjectCode;
+  };
 
   return (
     <div className="space-y-6">
@@ -135,158 +80,172 @@ export default function Timetable() {
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-black italic tracking-tighter uppercase">Class Timetable 📅</h1>
-          <p className="text-muted-foreground font-medium">Academic schedule for Section {tutor?.section} ({tutor?.batch})</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+             Class Timetable 📅
+          </h1>
+          <p className="text-muted-foreground mt-1">
+              Schedule for {tutorInfo ? `Batch ${tutorInfo.batch} - Section ${tutorInfo.section}` : 'My Class'}
+          </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-xl border-white/10 font-black uppercase text-[10px] tracking-widest italic hover:bg-white/5">
-            <Filter className="w-4 h-4 mr-2" />
-            Class Selector
-          </Button>
-          <Button variant="gradient" className="rounded-xl shadow-xl shadow-primary/20 font-black uppercase text-[10px] tracking-widest italic px-6">
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+          <Button variant="outline"><Download className="w-4 h-4 mr-2" /> Download PDF</Button>
         </div>
       </motion.div>
 
-      <div className="flex bg-white/5 p-2 rounded-2xl overflow-x-auto gap-2 no-scrollbar border border-white/5">
-        {days.map((day) => (
-          <Button
-            key={day}
-            variant={activeDay === day ? 'default' : 'ghost'}
-            onClick={() => setActiveDay(day)}
-            className={cn(
-              "rounded-xl px-8 font-black uppercase text-[10px] tracking-widest transition-all duration-300 italic",
-              activeDay === day ? "shadow-lg shadow-primary/25 bg-primary" : "hover:bg-white/5"
-            )}
-          >
-            {day}
-          </Button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-4">
-          {(schedule[activeDay] || []).map((item, index) => {
-            const isBreak = item.type === 'Break';
-            const isFree = item.type === 'Free';
-
-            return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className={cn(
-                  "glass-card border-none overflow-hidden transition-all duration-300 group hover:translate-x-2 rounded-2xl",
-                  (isBreak || isFree) ? "opacity-60" : "shadow-xl hover:shadow-2xl bg-white/[0.02]"
-                )}>
-                  <div className="flex items-stretch min-h-[90px]">
-                    <div className={cn(
-                      "w-2 flex-shrink-0",
-                      isBreak || isFree ? "bg-white/10" : "bg-gradient-to-b from-primary to-accent shadow-glow shadow-primary/20"
-                    )} />
-                    
-                    <div className="flex-1 p-5 grid grid-cols-1 md:grid-cols-4 items-center gap-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/5">
-                          <Clock className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black italic">{timeSlots[index]}</p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Session {index + 1}</p>
-                        </div>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <div className="flex items-center gap-3">
-                          <h4 className="text-lg font-black italic tracking-tight uppercase group-hover:text-primary transition-colors">{item.subject}</h4>
-                          {item.code && <Badge variant="outline" className="text-[9px] font-mono border-white/10 font-black tracking-widest uppercase">{item.code}</Badge>}
-                        </div>
-                        <div className="flex items-center gap-4 mt-2">
-                          {item.room && (
-                            <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                              <MapPin className="w-3 h-3 text-accent" />
-                              {item.room}
-                            </span>
-                          )}
-                          {!isBreak && !isFree && (
-                            <Badge variant="secondary" className={cn("text-[8px] font-black uppercase tracking-widest px-3 py-0.5 border-none", item.color)}>
-                              {item.type}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="hidden md:flex justify-end">
-                         {item.faculty ? (
-                           <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5 group-hover:border-primary/20 transition-all">
-                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-white/10">
-                               <User className="w-4 h-4 text-primary" />
-                             </div>
-                             <span className="text-[9px] font-black uppercase tracking-widest">{item.faculty}</span>
-                           </div>
-                         ) : (
-                           <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground italic opacity-50">{isBreak ? 'Break' : 'Self Study'}</span>
-                         )}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            );
-          })}
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500/40 to-cyan-500/40 border border-blue-500/50" />
+          <span className="text-sm text-muted-foreground">Theory</span>
         </div>
-
-        <div className="space-y-6">
-          <Card className="glass-card p-8 border-none shadow-2xl rounded-3xl bg-white/[0.02] relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10" />
-            <h3 className="text-xl font-black italic uppercase tracking-tight mb-8 flex items-center gap-3">
-              <BookOpen className="w-6 h-6 text-primary" />
-              Syllabus Velocity
-            </h3>
-            <div className="space-y-6">
-               {velocity.map((item, i) => (
-                 <div key={i} className="space-y-3">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                      <span className="text-muted-foreground italic truncate max-w-[150px]">{item.sub}</span>
-                      <span className="text-primary">{item.prog}%</span>
-                    </div>
-                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                       <motion.div
-                         initial={{ width: 0 }}
-                         animate={{ width: `${item.prog}%` }}
-                         transition={{ duration: 1, delay: i * 0.1 }}
-                         className={cn("h-full rounded-full shadow-glow", item.color)}
-                       />
-                    </div>
-                 </div>
-               ))}
-            </div>
-            <Button variant="outline" className="w-full mt-8 rounded-xl border-white/10 font-black uppercase text-[10px] tracking-widest italic hover:bg-white/5">Full Syllabus Mapping</Button>
-          </Card>
-
-          <Card className="glass-card p-8 border-none shadow-2xl rounded-3xl bg-gradient-to-br from-success/5 to-primary/5 border border-success/5">
-            <h3 className="text-xl font-black italic uppercase tracking-tight mb-2">Class Pulse</h3>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-6">Upcoming Milestones</p>
-            <div className="space-y-4">
-               {pulse.length > 0 ? pulse.map((item, i) => (
-                 <div key={i} className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                    <p className={cn("text-[9px] font-black uppercase tracking-widest", item.color)}>{item.label}</p>
-                    <p className="text-sm font-black italic mt-2 uppercase">{item.title}</p>
-                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1 opacity-50">{item.date}</p>
-                 </div>
-               )) : (
-                 <div className="text-center py-10 opacity-30 italic font-medium uppercase text-[10px] tracking-widest">No upcoming pulse data</div>
-               )}
-            </div>
-          </Card>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-500/40 to-pink-500/40 border border-purple-500/50" />
+          <span className="text-sm text-muted-foreground">Lab</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-500/40 to-orange-500/40 border border-amber-500/50" />
+          <span className="text-sm text-muted-foreground">Tutorial</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-500/20 to-gray-600/20 border border-gray-500/30" />
+          <span className="text-sm text-muted-foreground">Free</span>
         </div>
       </div>
+
+      <Card className="glass-card border-white/10 overflow-hidden">
+        <CardHeader className="border-b border-white/10">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Weekly Class Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-hidden">
+            <table className="w-full table-fixed">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="p-2 text-left text-sm font-semibold text-muted-foreground w-32 sticky left-0 bg-background/95 backdrop-blur z-10">
+                        <Calendar className="w-4 h-4 inline mr-2" />
+                        Day
+                      </th>
+                      {periods.map((period) => (
+                        <th 
+                          key={period.num} 
+                          className={`p-2 text-center text-sm font-semibold ${period.isBreak ? 'w-10 p-0 bg-emerald-500/20 border-b-0' : ''}`}
+                        >
+                          {!period.isBreak && (
+                            <>
+                              <div>{`Period ${period.num}`}</div>
+                              <div className="text-xs font-normal text-muted-foreground">{period.time}</div>
+                            </>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {days.map((day, dayIndex) => (
+                      <tr key={day} className="border-b border-white/5">
+                        <td className="p-3 text-sm font-medium text-muted-foreground sticky left-0 bg-background/95 backdrop-blur z-10">
+                          {day}
+                        </td>
+                        {periods.map((period, index) => {
+                          // Handle Breaks - Vertical Column
+                          if (period.isBreak) {
+                             if (dayIndex === 0) {
+                               return (
+                                 <td 
+                                    key={`${day}-${period.num}`} 
+                                    rowSpan={days.length} 
+                                    className="p-0 bg-emerald-500/20 align-middle text-center w-10 border-x border-white/10 border-t-0"
+                                 >
+                                    <div className="h-full flex items-center justify-center writing-vertical-lr rotate-180 font-extrabold text-emerald-600 tracking-widest text-xl py-4 uppercase shadow-inner">
+                                      {period.label}
+                                    </div>
+                                 </td>
+                               );
+                             }
+                             return null;
+                          }
+
+                          // Handle Saturday Constraint
+                          if (day === 'Saturday' && typeof period.num === 'number' && period.num > 4) {
+                             return (
+                               <td key={`${day}-${period.num}`} className="p-1 bg-white/5 opacity-50 relative">
+                                  <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground font-medium -rotate-12 select-none">
+                                      No Class
+                                  </div>
+                               </td>
+                             );
+                          }
+
+                          // MERGE LOGIC
+                          const prevPeriod = periods[index - 1];
+                          if (prevPeriod && !prevPeriod.isBreak && hasSameContent(day, prevPeriod.num, period.num)) {
+                              return null;
+                          }
+
+                          let colSpan = 1;
+                          for (let k = index + 1; k < periods.length; k++) {
+                              const nextPeriod = periods[k];
+                              if (nextPeriod.isBreak) break; 
+                              if (hasSameContent(day, period.num, nextPeriod.num)) {
+                                  colSpan++;
+                              } else {
+                                  break;
+                              }
+                          }
+
+                          const slot = getSlot(day, period.num);
+                          return (
+                            <td 
+                                key={`${day}-${period.num}`} 
+                                className="p-1"
+                                colSpan={colSpan}
+                            >
+                              {slot ? (
+                                <motion.div
+                                  whileHover={{ scale: 1.02 }}
+                                  className={`p-2 rounded-lg border transition-all cursor-default min-h-[80px] flex flex-col justify-center ${getSlotColor(slot.type)}`}
+                                >
+                                  <div className="font-medium text-sm truncate">
+                                    {slot.subject}
+                                  </div>
+                                  {slot.subjectCode && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {slot.subjectCode}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1">
+                                      {slot.facultyName && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <User className="w-3 h-3" />
+                                          {slot.facultyName.split(' ')[0]}
+                                        </div>
+                                      )}
+                                      {slot.room && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Building className="w-3 h-3" />
+                                          {slot.room}
+                                        </div>
+                                      )}
+                                  </div>
+                                </motion.div>
+                              ) : (
+                                <div className="h-full min-h-[80px] rounded-lg border border-dashed border-white/5 bg-white/[0.02] flex items-center justify-center opacity-50">
+                                    <span className="text-xs text-muted-foreground">Free</span>
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
-

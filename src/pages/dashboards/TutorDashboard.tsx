@@ -50,8 +50,11 @@ import {
 } from '@/lib/data-store';
 import { toast } from 'sonner';
 
+import { useNavigate } from 'react-router-dom';
+
 export default function TutorDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -207,15 +210,54 @@ export default function TutorDashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-xl border-white/10 hover:bg-white/5 font-black uppercase text-[10px] tracking-widest italic px-6">
+          <Button onClick={() => navigate('/tutor/analytics')} variant="outline" className="rounded-xl border-white/10 hover:bg-white/5 font-black uppercase text-[10px] tracking-widest italic px-6">
             <BarChart3 className="w-4 h-4 mr-2 text-primary" />
             Class Analytics
           </Button>
-          <Button variant="gradient" className="rounded-xl shadow-xl shadow-primary/20 font-black uppercase text-[10px] tracking-widest italic px-8">
+          <Button onClick={() => navigate('/tutor/class')} variant="gradient" className="rounded-xl shadow-xl shadow-primary/20 font-black uppercase text-[10px] tracking-widest italic px-8">
             <Users className="w-4 h-4 mr-2" />
             Attendance
           </Button>
         </div>
+      </motion.div>
+
+      {/* Faculty Quick Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="glass-card p-6 rounded-3xl border-none bg-white/[0.02] shadow-xl"
+      >
+         <h3 className="text-lg font-black uppercase tracking-tight italic mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-accent" />
+            Faculty Responsibilities
+         </h3>
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             <Button onClick={() => navigate('/faculty/marks')} variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 bg-white/5 border-white/5 hover:border-primary/50 hover:bg-primary/5 rounded-2xl group">
+                 <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <ClipboardCheck className="w-5 h-5 text-primary" />
+                 </div>
+                 <span className="font-black uppercase text-[10px] tracking-widest">Marks Entry</span>
+             </Button>
+             <Button onClick={() => navigate('/faculty/notes')} variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 bg-white/5 border-white/5 hover:border-accent/50 hover:bg-accent/5 rounded-2xl group">
+                 <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <FileText className="w-5 h-5 text-accent" />
+                 </div>
+                 <span className="font-black uppercase text-[10px] tracking-widest">Upload Notes</span>
+             </Button>
+             <Button onClick={() => navigate('/faculty/assignments')} variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 bg-white/5 border-white/5 hover:border-success/50 hover:bg-success/5 rounded-2xl group">
+                 <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <FileCheck className="w-5 h-5 text-success" />
+                 </div>
+                 <span className="font-black uppercase text-[10px] tracking-widest">Assignments</span>
+             </Button>
+             <Button onClick={() => navigate('/faculty/timetable')} variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 bg-white/5 border-white/5 hover:border-warning/50 hover:bg-warning/5 rounded-2xl group">
+                 <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <Clock className="w-5 h-5 text-warning" />
+                 </div>
+                 <span className="font-black uppercase text-[10px] tracking-widest">My Timetable</span>
+             </Button>
+         </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -261,7 +303,7 @@ export default function TutorDashboard() {
               <h3 className="text-xl font-black uppercase tracking-tight italic">Performance Dynamics</h3>
               <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">Class Average Trends</p>
             </div>
-            <Button variant="outline" size="sm" className="rounded-xl font-black uppercase text-[9px] tracking-widest border-white/10 italic px-4">Insights</Button>
+            <Button onClick={() => navigate('/tutor/analytics')} variant="outline" size="sm" className="rounded-xl font-black uppercase text-[9px] tracking-widest border-white/10 italic px-4">Insights</Button>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -358,7 +400,7 @@ export default function TutorDashboard() {
               <div className="text-center py-20 opacity-50 italic font-medium">No sessions scheduled for today.</div>
             )}
           </div>
-          <Button variant="ghost" className="w-full mt-6 rounded-xl font-black uppercase text-[10px] tracking-widest italic" size="sm">
+          <Button onClick={() => navigate('/tutor/timetable')} variant="ghost" className="w-full mt-6 rounded-xl font-black uppercase text-[10px] tracking-widest italic" size="sm">
             View Full Timetable
           </Button>
         </motion.div>
@@ -373,7 +415,7 @@ export default function TutorDashboard() {
         >
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black uppercase tracking-tight italic">Approval Queue</h3>
-            <Button variant="ghost" size="sm" className="font-black text-[9px] uppercase tracking-widest text-primary italic">Process All</Button>
+            <Button onClick={() => navigate('/tutor/leave')} variant="ghost" size="sm" className="font-black text-[9px] uppercase tracking-widest text-primary italic">Process All</Button>
           </div>
           <div className="space-y-4">
             {approvals.length > 0 ? approvals.map((item, index) => (

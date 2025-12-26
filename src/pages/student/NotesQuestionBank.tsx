@@ -11,17 +11,41 @@ import {
   Filter,
   AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getResources, getStudents, Resource } from '@/lib/data-store';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  getResources, 
+  getStudents, 
+  Resource, 
+  getFaculty, 
+  Faculty, 
+  addNotification 
+} from '@/lib/data-store';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function NotesQuestionBank() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [resources, setResources] = useState<Resource[]>([]);
-  const [activeTab, setActiveTab ] = useState('all');
+  const [activeTab, setActiveTab ] = useState('notes');
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
   useEffect(() => {
     const allResources = getResources();
@@ -32,7 +56,15 @@ export default function NotesQuestionBank() {
     const matchesSearch = res.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           res.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           res.subjectCode.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesSubject = selectedSubject ? res.subjectCode === selectedSubject : true;
+    
+    // Mapping activeTab to Resource Type
+    // Assuming 'Note' and 'Question Bank' are the exact strings in the data store based on previous observations in this file
+    // Check data-store if 'Question Bank' is 'QP' or 'Question Bank'
+    // Previous code used 'Question Bank' so sticking to that, but making it robust
+    const matchesType = activeTab === 'notes' ? res.type === 'Note' : (res.type === 'Question Bank' || res.type === 'QP');
+
+    return matchesSearch && matchesSubject && matchesType;
   });
 
   // Unique Subjects for Sidebar
@@ -78,17 +110,21 @@ export default function NotesQuestionBank() {
               Quick Filters
             </h3>
             <div className="space-y-2">
-              <Button variant="secondary" className="w-full justify-start rounded-xl font-semibold">
+              <Button 
+                variant={activeTab === 'notes' ? 'secondary' : 'ghost'} 
+                className="w-full justify-start rounded-xl font-semibold transition-all"
+                onClick={() => setActiveTab('notes')}
+              >
                 <FileText className="w-4 h-4 mr-2" />
                 Lecture Notes
               </Button>
-              <Button variant="ghost" className="w-full justify-start rounded-xl">
+              <Button 
+                variant={activeTab === 'question_bank' ? 'secondary' : 'ghost'} 
+                className="w-full justify-start rounded-xl font-semibold transition-all"
+                onClick={() => setActiveTab('question_bank')}
+              >
                 <HelpCircle className="w-4 h-4 mr-2" />
                 Question Bank
-              </Button>
-              <Button variant="ghost" className="w-full justify-start rounded-xl">
-                <FileCode className="w-4 h-4 mr-2" />
-                Lab Manuals
               </Button>
             </div>
           </div>
@@ -101,8 +137,21 @@ export default function NotesQuestionBank() {
               <h3 className="font-bold">By Subjects</h3>
             </div>
             <div className="space-y-3">
+              <div 
+                className={`flex items-center justify-between group cursor-pointer hover:text-primary transition-colors ${selectedSubject === null ? 'text-primary font-bold' : ''}`}
+                onClick={() => setSelectedSubject(null)}
+              >
+                  <span className="text-sm font-medium">All Subjects</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                    {resources.length}
+                  </span>
+              </div>
               {subjects.map((sub, idx) => (
-                <div key={idx} className="flex items-center justify-between group cursor-pointer hover:text-primary transition-colors">
+                <div 
+                    key={idx} 
+                    className={`flex items-center justify-between group cursor-pointer hover:text-primary transition-colors ${selectedSubject === sub.code ? 'text-primary font-bold' : ''}`}
+                    onClick={() => setSelectedSubject(sub.code)}
+                >
                   <span className="text-sm font-medium">{sub.name}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-all">
                     {sub.count}
@@ -118,60 +167,29 @@ export default function NotesQuestionBank() {
 
         {/* Main Content */}
         <div className="lg:col-span-3 space-y-6">
-          <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
-            <TabsList className="bg-muted/50 p-1 rounded-xl mb-6">
-              <TabsTrigger value="all" className="rounded-lg">All Resources</TabsTrigger>
-              <TabsTrigger value="recent" className="rounded-lg">Recently Added</TabsTrigger>
-              <TabsTrigger value="favorites" className="rounded-lg">Favorites</TabsTrigger>
-            </TabsList>
+          <motion.div 
+            key={activeTab}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center justify-between"
+          >
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              {activeTab === 'notes' ? <FileText className="w-5 h-5 text-primary" /> : <HelpCircle className="w-5 h-5 text-accent" />}
+              {activeTab === 'notes' ? 'Lecture Notes' : 'Question Banks'}
+            </h2>
+            <span className="text-xs font-medium px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                Showing {filteredResources.length} resources
+            </span>
+          </motion.div>
 
-            <TabsContent value="all" className="outline-none">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredResources.map((res, idx) => (
-                  <motion.div
-                    key={res.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="p-5 glass-card rounded-2xl group hover:border-primary/20 transition-all cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        res.type === 'Note' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
-                      }`}>
-                        {res.type === 'Note' ? <FileText className="w-5 h-5" /> : <HelpCircle className="w-5 h-5" />}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted text-primary">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{res.subjectCode} • {res.type}</p>
-                    <h4 className="font-bold text-lg mb-4 group-hover:text-primary transition-colors">{res.title}</h4>
-
-                    <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase">
-                      <span>{res.fileSize} ({res.fileType})</span>
-                      <span className="flex items-center gap-1 text-[8px]">
-                        <div className="w-1 h-1 rounded-full bg-muted-foreground" />
-                        {new Date(res.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-                {filteredResources.length === 0 && (
-                    <div className="col-span-2 py-20 text-center flex flex-col items-center gap-3 bg-muted/20 rounded-2xl border-2 border-dashed border-white/5">
-                        <AlertCircle className="w-10 h-10 opacity-20" />
-                        <p className="text-muted-foreground font-medium">No resources found matching your criteria.</p>
-                    </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredResources.map((res, idx) => (
+                <ResourceCard key={res.id} res={res} idx={idx} />
+            ))}
+            {filteredResources.length === 0 && (
+                <EmptyState type={activeTab === 'notes' ? "Lecture Notes" : "Question Banks"} />
+            )}
+          </div>
 
           {/* Quick Actions */}
           <motion.div
@@ -182,11 +200,10 @@ export default function NotesQuestionBank() {
           >
             <h3 className="text-xl font-bold">Can't find what you're looking for?</h3>
             <p className="text-muted-foreground text-sm max-w-md mx-auto">
-              Request resources from your faculty or check the physical library catalog for offline reference.
+              Request specific study materials from your faculty directly.
             </p>
             <div className="flex justify-center gap-3">
-              <Button variant="default" className="rounded-xl px-8" disabled>Request Material</Button>
-              <Button variant="outline" className="rounded-xl px-8" disabled>Library Portal</Button>
+              <RequestMaterialDialog user={user} />
             </div>
           </motion.div>
         </div>
@@ -194,3 +211,125 @@ export default function NotesQuestionBank() {
     </div>
   );
 }
+
+function RequestMaterialDialog({ user }: { user: any }) {
+  const [open, setOpen] = useState(false);
+  const [facultyList, setFacultyList] = useState<Faculty[]>([]);
+  const [selectedFaculty, setSelectedFaculty] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    setFacultyList(getFaculty());
+  }, []);
+
+  const handleSubmit = () => {
+    if (!selectedFaculty || !description) {
+      toast.error("Please select a faculty and provide a description.");
+      return;
+    }
+
+    const faculty = facultyList.find(f => f.id === selectedFaculty);
+    if (!faculty) return;
+
+    addNotification({
+      recipientId: faculty.id,
+      senderId: user?.id || 'unknown',
+      senderName: user?.name || 'Student',
+      title: 'Material Request',
+      message: `${user?.name} has requested study material: ${description}`,
+      type: 'request'
+    });
+
+    toast.success("Request sent successfully!");
+    setOpen(false);
+    setSelectedFaculty('');
+    setDescription('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="default" className="rounded-xl px-8">Request Material</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Request Study Material</DialogTitle>
+          <DialogDescription>
+            Send a request to your faculty for specific notes or question papers.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Select Faculty</label>
+            <Select value={selectedFaculty} onValueChange={setSelectedFaculty}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose Faculty" />
+              </SelectTrigger>
+              <SelectContent>
+                {facultyList.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.name} ({f.designation})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Description</label>
+            <Textarea 
+              placeholder="Describe the material you need (e.g., Unit 3 Notes for Data Structures)" 
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="resize-none"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleSubmit}>Send Request</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const ResourceCard = ({ res, idx }: { res: Resource, idx: number }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ delay: idx * 0.05 }}
+    className="p-5 glass-card rounded-2xl group hover:border-primary/20 transition-all cursor-pointer"
+  >
+    <div className="flex items-start justify-between mb-4">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+        res.type === 'Note' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
+      }`}>
+        {res.type === 'Note' ? <FileText className="w-5 h-5" /> : <HelpCircle className="w-5 h-5" />}
+      </div>
+      <div className="flex gap-2">
+        <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+        </Button>
+        <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted text-primary">
+          <Download className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+
+    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{res.subjectCode}</p>
+    <h4 className="font-bold text-lg mb-4 group-hover:text-primary transition-colors">{res.title}</h4>
+
+    <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase">
+      <span>{res.fileSize} ({res.fileType})</span>
+      <span className="flex items-center gap-1 text-[8px]">
+        <div className="w-1 h-1 rounded-full bg-muted-foreground" />
+        {new Date(res.createdAt).toLocaleDateString()}
+      </span>
+    </div>
+  </motion.div>
+);
+
+const EmptyState = ({ type }: { type: string }) => (
+    <div className="col-span-2 py-20 text-center flex flex-col items-center gap-3 bg-muted/20 rounded-2xl border-2 border-dashed border-white/5">
+        <AlertCircle className="w-10 h-10 opacity-20" />
+        <p className="text-muted-foreground font-medium">No {type} found matching your criteria.</p>
+    </div>
+);

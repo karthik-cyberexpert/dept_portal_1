@@ -56,7 +56,15 @@ const studentLinks: SidebarLink[] = [
 const facultyLinks: SidebarLink[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/faculty' },
   { label: 'Personal Details', icon: User, path: '/faculty/personal' },
-  { label: 'My Classes', icon: Calendar, path: '/faculty/classes' },
+  { 
+    label: 'My Classes', 
+    icon: Calendar, 
+    path: '/faculty/classes-menu',
+    children: [
+      { label: 'Course and Syllabus', icon: BookOpen, path: '/faculty/classes' },
+      { label: 'Students', icon: Users, path: '/faculty/students' }
+    ]
+  },
   { label: 'Timetable', icon: Calendar, path: '/faculty/timetable' },
   { label: 'Marks Entry', icon: ClipboardList, path: '/faculty/marks' },
   { label: 'Notes Upload', icon: BookOpen, path: '/faculty/notes' },
@@ -66,17 +74,39 @@ const facultyLinks: SidebarLink[] = [
 
 const tutorLinks: SidebarLink[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/tutor' },
-  { label: 'Class Analytics', icon: BarChart3, path: '/tutor/analytics' },
+  { 
+    label: 'Class Analytics', 
+    icon: BarChart3, 
+    path: '/tutor/analytics-menu',
+    children: [
+      { label: 'Anaytics', icon: BarChart3, path: '/tutor/analytics' },
+      { label: 'My Class', icon: Users, path: '/tutor/class' },
+      { label: 'Class Time Table', icon: Calendar, path: '/tutor/timetable' },
+      { label: 'Verify Marks', icon: ClipboardList, path: '/tutor/marks' },
+      { label: 'Notes Status', icon: BookOpen, path: '/tutor/notes' },
+      { label: 'Assignment Status', icon: FileText, path: '/tutor/assignments' },
+      { label: 'LMS Analytics', icon: BarChart3, path: '/tutor/lms' },
+      { label: 'ECA Analytics', icon: Trophy, path: '/tutor/eca' },
+      { label: 'Circulars', icon: Bell, path: '/tutor/circulars' },
+      { label: 'Leave Approvals', icon: ExternalLink, path: '/tutor/leave' },
+    ]
+  },
+  // Faculty Responsibilities
   { label: 'Personal Details', icon: User, path: '/tutor/personal' },
-  { label: 'My Class', icon: Users, path: '/tutor/class' },
-  { label: 'Timetable', icon: Calendar, path: '/tutor/timetable' },
-  { label: 'Verify Marks', icon: ClipboardList, path: '/tutor/marks' },
-  { label: 'Notes Status', icon: BookOpen, path: '/tutor/notes' },
-  { label: 'Assignment Status', icon: FileText, path: '/tutor/assignments' },
-  { label: 'LMS Analytics', icon: BarChart3, path: '/tutor/lms' },
-  { label: 'ECA Approvals', icon: Trophy, path: '/tutor/eca' },
-  { label: 'Circulars', icon: Bell, path: '/tutor/circulars' },
-  { label: 'Leave Approvals', icon: ExternalLink, path: '/tutor/leave' },
+  { 
+    label: 'My Subjects', 
+    icon: BookOpen, 
+    path: '/faculty/classes-menu',
+    children: [
+      { label: 'Course and Syllabus', icon: BookOpen, path: '/faculty/classes' },
+      { label: 'Students', icon: Users, path: '/faculty/students' }
+    ]
+  },
+  { label: 'My Timetable', icon: Calendar, path: '/faculty/timetable' },
+  { label: 'Marks Entry', icon: ClipboardList, path: '/faculty/marks' },
+  { label: 'Notes Upload', icon: BookOpen, path: '/faculty/notes' },
+  { label: 'Assignments', icon: FileText, path: '/faculty/assignments' },
+  { label: 'Faculty Circulars', icon: Bell, path: '/faculty/circulars' },
 ];
 
 const adminLinks: SidebarLink[] = [

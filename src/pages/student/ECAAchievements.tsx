@@ -48,8 +48,8 @@ export default function ECAAchievements() {
     title: '',
     organization: '',
     date: '',
-    category: 'Technical' as Achievement['category'],
-    level: 'College' as Achievement['level'],
+    category: 'Technical',
+    customCategory: '',
     link: ''
   });
 
@@ -61,7 +61,10 @@ export default function ECAAchievements() {
 
   const handleAdd = () => {
     if (!user) return;
-    if (!newAch.title || !newAch.organization || !newAch.date) {
+    
+    const finalCategory = newAch.category === 'Other' ? newAch.customCategory : newAch.category;
+
+    if (!newAch.title || !newAch.organization || !newAch.date || !finalCategory) {
         toast.error("Please fill in required fields");
         return;
     }
@@ -69,7 +72,11 @@ export default function ECAAchievements() {
     addAchievement({
         userId: user.id,
         userName: user.name,
-        ...newAch
+        title: newAch.title,
+        organization: newAch.organization,
+        date: newAch.date,
+        category: finalCategory,
+        link: newAch.link
     });
 
     setAchievements(getAchievements().filter(a => a.userId === user.id));
@@ -80,7 +87,7 @@ export default function ECAAchievements() {
         organization: '',
         date: '',
         category: 'Technical',
-        level: 'College',
+        customCategory: '',
         link: ''
     });
   };
@@ -147,38 +154,38 @@ export default function ECAAchievements() {
                             onChange={e => setNewAch({...newAch, organization: e.target.value})}
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Category</Label>
-                            <Select value={newAch.category} onValueChange={(val: any) => setNewAch({...newAch, category: val})}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Technical">Technical</SelectItem>
-                                    <SelectItem value="Cultural">Cultural</SelectItem>
-                                    <SelectItem value="Sports">Sports</SelectItem>
-                                    <SelectItem value="Social Service">Social Service</SelectItem>
-                                    <SelectItem value="Leadership">Leadership</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Level</Label>
-                            <Select value={newAch.level} onValueChange={(val: any) => setNewAch({...newAch, level: val})}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="College">College</SelectItem>
-                                    <SelectItem value="District">District</SelectItem>
-                                    <SelectItem value="State">State</SelectItem>
-                                    <SelectItem value="National">National</SelectItem>
-                                    <SelectItem value="International">International</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="space-y-2">
+                        <Label>Category</Label>
+                        <Select value={newAch.category} onValueChange={(val: any) => setNewAch({...newAch, category: val})}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Technical">Technical</SelectItem>
+                                <SelectItem value="Cultural">Cultural</SelectItem>
+                                <SelectItem value="Sports">Sports</SelectItem>
+                                <SelectItem value="Social Service">Social Service</SelectItem>
+                                <SelectItem value="Leadership">Leadership</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
+
+
+                {newAch.category === 'Other' && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-2"
+                  >
+                    <Label>Specify Category</Label>
+                    <Input 
+                        placeholder="Please specify the category..." 
+                        value={newAch.customCategory}
+                        onChange={e => setNewAch({...newAch, customCategory: e.target.value})}
+                    />
+                  </motion.div>
+                )}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Date</Label>
@@ -246,20 +253,7 @@ export default function ECAAchievements() {
             </div>
           </motion.div>
 
-          <div className="glass-card rounded-2xl p-4 space-y-2 shadow-xl border-white/5">
-            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2 mb-2 italic">Gallery Filter</h3>
-            {['All', 'Technical', 'Cultural', 'Sports', 'Social Service', 'Leadership'].map((cat) => (
-              <Button
-                key={cat}
-                variant={filter === cat.toLowerCase() ? 'default' : 'ghost'}
-                onClick={() => setFilter(cat.toLowerCase())}
-                className="w-full justify-start rounded-xl h-10 text-[10px] font-black uppercase transition-all tracking-widest"
-              >
-                <div className={`w-2 h-2 rounded-full mr-2 ${filter === cat.toLowerCase() ? 'bg-white' : 'bg-primary'}`} />
-                {cat}
-              </Button>
-            ))}
-          </div>
+          {/* Gallery Filter Removed */}
         </div>
 
         {/* Gallery Grid */}

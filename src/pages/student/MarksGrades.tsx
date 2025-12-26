@@ -40,6 +40,7 @@ export default function MarksGrades() {
     rank: "N/A",
     totalPoints: 0
   });
+  const [viewType, setViewType] = useState<"internal" | "external">("internal");
 
   const [previousGrades, setPreviousGrades] = useState<any[]>([]);
 
@@ -63,7 +64,8 @@ export default function MarksGrades() {
             code: mark.subjectCode,
             ia1: '-',
             ia2: '-',
-            ia3: '-',
+            cia3: '-',
+            model: '-',
             assignment: '-',
             total: 0,
             external: 'Pending'
@@ -72,7 +74,9 @@ export default function MarksGrades() {
       
       if (mark.examType === 'ia1') subjects[mark.subjectCode].ia1 = mark.marks;
       if (mark.examType === 'ia2') subjects[mark.subjectCode].ia2 = mark.marks;
-      if (mark.examType === 'model') subjects[mark.subjectCode].ia3 = mark.marks;
+      if (mark.examType === 'cia3') subjects[mark.subjectCode].cia3 = mark.marks;
+      if (mark.examType === 'model') subjects[mark.subjectCode].model = mark.marks;
+      if (mark.examType === 'assignment') subjects[mark.subjectCode].assignment = mark.marks;
     });
 
     // Calculate totals and GPA for current semester
@@ -84,7 +88,9 @@ export default function MarksGrades() {
       let count = 0;
       if (typeof sub.ia1 === 'number') { subTotal += sub.ia1; count++; }
       if (typeof sub.ia2 === 'number') { subTotal += sub.ia2; count++; }
-      if (typeof sub.ia3 === 'number') { subTotal += sub.ia3; count++; }
+      if (typeof sub.cia3 === 'number') { subTotal += sub.cia3; count++; }
+      if (typeof sub.model === 'number') { subTotal += sub.model; count++; }
+      if (typeof sub.assignment === 'number') { subTotal += sub.assignment; count++; }
       
       sub.total = subTotal; 
       
@@ -152,6 +158,16 @@ export default function MarksGrades() {
           <p className="text-muted-foreground">Track your academic performance and assessment results</p>
         </div>
           <div className="flex gap-2">
+            <Select value={viewType} onValueChange={(v: "internal" | "external") => setViewType(v)}>
+              <SelectTrigger className="w-[180px] bg-background/50 border-white/10 rounded-xl">
+                <SelectValue placeholder="View Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="internal">Internal Marks</SelectItem>
+                <SelectItem value="external">External Result</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select defaultValue="sem5">
               <SelectTrigger className="w-[180px] bg-background/50 border-white/10 rounded-xl">
                 <SelectValue placeholder="Select Semester" />
@@ -196,7 +212,7 @@ export default function MarksGrades() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Internal Assessment */}
+        {/* Internal Assessment / External Results Switcher */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -205,56 +221,107 @@ export default function MarksGrades() {
         >
           <div className="p-6 border-b border-white/10 flex items-center justify-between bg-primary/5">
             <h3 className="text-lg font-bold flex items-center gap-2">
-              < BookOpen className="w-5 h-5 text-primary" />
-              Assessment Details
+              <BookOpen className="w-5 h-5 text-primary" />
+              {viewType === 'internal' ? 'Internal Assessment Details' : 'University Results'}
             </h3>
-            <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest">In Progress</span>
+            <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest">
+                {viewType === 'internal' ? 'In Progress' : 'Published'}
+            </span>
           </div>
+          
           <div className="p-0">
-            <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-white/10">
-                    <TableHead className="font-bold text-muted-foreground pl-6">Subject</TableHead>
-                    <TableHead className="font-bold text-muted-foreground text-center">IA-1</TableHead>
-                    <TableHead className="font-bold text-muted-foreground text-center">IA-2</TableHead>
-                    <TableHead className="font-bold text-muted-foreground text-center">Model</TableHead>
-                    <TableHead className="font-bold text-muted-foreground text-center">Assgn.</TableHead>
-                    <TableHead className="font-bold text-muted-foreground text-center">Grade</TableHead>
-                    <TableHead className="font-bold text-primary text-right pr-6">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {marksData.length > 0 ? marksData.map((item, idx) => (
-                    <TableRow key={idx} className="group border-white/5 hover:bg-white/5 transition-colors">
-                      <TableCell className="pl-6">
-                        <p className="font-bold text-sm tracking-tight">{item.subject}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase">{item.code}</p>
-                      </TableCell>
-                      <TableCell className="text-center font-medium font-mono">{item.ia1}</TableCell>
-                      <TableCell className="text-center font-medium font-mono">{item.ia2}</TableCell>
-                      <TableCell className="text-center font-medium font-mono">{item.ia3}</TableCell>
-                      <TableCell className="text-center font-medium font-mono">{item.assignment}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className={cn("font-bold", getGradeColor(item.external))}>
-                          {item.external}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <span className="font-black text-primary font-mono">{item.total}</span>
-                      </TableCell>
+            {viewType === 'internal' ? (
+                <Table>
+                    <TableHeader>
+                    <TableRow className="hover:bg-transparent border-white/10">
+                    <TableHead className="w-[60px] font-bold text-muted-foreground pl-6">S.No</TableHead>
+                        <TableHead className="font-bold text-muted-foreground">Subject Name and Code</TableHead>
+                        <TableHead className="font-bold text-muted-foreground text-center">CIA-1</TableHead>
+                        <TableHead className="font-bold text-muted-foreground text-center">CIA-2</TableHead>
+                        <TableHead className="font-bold text-muted-foreground text-center">CIA-3</TableHead>
+                        <TableHead className="font-bold text-muted-foreground text-center">Model</TableHead>
+                        <TableHead className="font-bold text-muted-foreground text-center">Assignment</TableHead>
+                        <TableHead className="font-bold text-primary text-right pr-6">Total</TableHead>
                     </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">
-                        <div className="flex flex-col items-center gap-2">
-                            <AlertCircle className="w-8 h-8 opacity-20" />
-                            <p>No assessment records or marks released yet for this semester.</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                    {marksData.length > 0 ? marksData.map((item, idx) => (
+                        <TableRow key={idx} className="group border-white/5 hover:bg-white/5 transition-colors">
+                        <TableCell className="pl-6 font-medium text-muted-foreground">{idx + 1}</TableCell>
+                        <TableCell>
+                            <p className="font-bold text-sm tracking-tight">{item.subject}</p>
+                            <p className="text-[10px] text-muted-foreground font-medium uppercase">{item.code}</p>
+                        </TableCell>
+                        <TableCell className="text-center font-medium font-mono">{item.ia1}</TableCell>
+                        <TableCell className="text-center font-medium font-mono">{item.ia2}</TableCell>
+                        <TableCell className="text-center font-medium font-mono">{item.cia3 || '-'}</TableCell>
+                        <TableCell className="text-center font-medium font-mono">{item.model || '-'}</TableCell>
+                        <TableCell className="text-center font-medium font-mono">{item.assignment}</TableCell>
+                        <TableCell className="text-right pr-6">
+                            <span className="font-black text-primary font-mono">{item.total}</span>
+                        </TableCell>
+                        </TableRow>
+                    )) : (
+                        <TableRow>
+                        <TableCell colSpan={7} className="text-center py-20 text-muted-foreground italic">
+                            <div className="flex flex-col items-center gap-2">
+                                <AlertCircle className="w-8 h-8 opacity-20" />
+                                <p>No assessment records or marks released yet for this semester.</p>
+                            </div>
+                        </TableCell>
+                        </TableRow>
+                    )}
+                    </TableBody>
+                </Table>
+            ) : (
+                <Table>
+                    <TableHeader>
+                        <TableRow className="hover:bg-transparent border-white/10">
+                            <TableHead className="w-[60px] font-bold text-muted-foreground pl-6">S.No</TableHead>
+                            <TableHead className="font-bold text-muted-foreground">Subject Name</TableHead>
+                            <TableHead className="font-bold text-muted-foreground text-center">Subject Code</TableHead>
+                            <TableHead className="font-bold text-muted-foreground text-center">Grade</TableHead>
+                            <TableHead className="font-bold text-success text-center border-l border-white/5">GPA</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {marksData.length > 0 ? marksData.map((item, idx) => (
+                            <TableRow key={idx} className="group border-white/5 hover:bg-white/5 transition-colors">
+                                <TableCell className="pl-6 font-medium text-muted-foreground">{idx + 1}</TableCell>
+                                <TableCell className="font-bold text-sm tracking-tight">{item.subject}</TableCell>
+                                <TableCell className="text-center text-xs font-mono text-muted-foreground">{item.code}</TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="outline" className={cn("font-bold", getGradeColor(item.external))}>
+                                        {item.external}
+                                    </Badge>
+                                </TableCell>
+                                {idx === 0 && (
+                                    <TableCell 
+                                        rowSpan={marksData.length} 
+                                        className="text-center border-l border-white/5 bg-white/[0.02]"
+                                    >
+                                        <div className="flex flex-col items-center justify-center gap-1 h-full">
+                                            <span className="text-3xl font-black text-success tracking-tighter">
+                                                {stats.gpa > 0 ? stats.gpa.toFixed(2) : '-'}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Semester GPA</span>
+                                        </div>
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <AlertCircle className="w-8 h-8 opacity-20" />
+                                        <p>No external results available.</p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            )}
           </div>
         </motion.div>
 

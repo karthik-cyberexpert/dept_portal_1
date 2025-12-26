@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { StatCard, GlassStatCard, ProgressCard } from '@/components/dashboard/StatCards';
 import { 
@@ -43,6 +44,7 @@ import {
 
 export default function FacultyDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [classesData, setClassesData] = useState<any[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<any[]>([]);
   const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
@@ -186,11 +188,11 @@ export default function FacultyDashboard() {
           <p className="text-muted-foreground">You have {stats.todayClasses} classes scheduled for today</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate('/faculty/timetable')}>
             <Calendar className="w-4 h-4 mr-2" />
             My Timetable
           </Button>
-          <Button variant="gradient">
+          <Button variant="gradient" onClick={() => navigate('/faculty/notes')}>
             <Upload className="w-4 h-4 mr-2" />
             Upload Notes
           </Button>
@@ -247,7 +249,7 @@ export default function FacultyDashboard() {
               <h3 className="text-lg font-semibold">Today's Schedule</h3>
               <p className="text-sm text-muted-foreground">Your classes for today</p>
             </div>
-            <Button variant="outline" size="sm">Full Timetable</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/faculty/timetable')}>Full Timetable</Button>
           </div>
           <div className="space-y-4">
             {classesData.length > 0 ? classesData.map((cls, index) => (
@@ -324,7 +326,7 @@ export default function FacultyDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Pending Evaluations</h3>
-            <Button variant="ghost" size="sm">View All</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/faculty/assignments')}>View All</Button>
           </div>
           <div className="space-y-4">
             {pendingSubmissions.length > 0 ? pendingSubmissions.map((item, index) => {
@@ -367,10 +369,10 @@ export default function FacultyDashboard() {
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: Upload, label: 'Upload Notes', color: 'primary' },
-            { icon: FileText, label: 'Create Assignment', color: 'accent' },
-            { icon: ClipboardCheck, label: 'Enter Marks', color: 'warning' },
-            { icon: Users, label: 'View Students', color: 'success' },
+            { icon: Upload, label: 'Upload Notes', color: 'primary', path: '/faculty/notes' },
+            { icon: FileText, label: 'Create Assignment', color: 'accent', path: '/faculty/assignments' },
+            { icon: ClipboardCheck, label: 'Enter Marks', color: 'warning', path: '/faculty/marks' },
+            { icon: Users, label: 'View Students', color: 'success', path: '/faculty/students' },
           ].map((action, index) => {
             const Icon = action.icon;
             return (
@@ -378,6 +380,7 @@ export default function FacultyDashboard() {
                 key={index}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => navigate(action.path)}
                 className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-all text-center group"
               >
                 <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 bg-${action.color}/10 text-${action.color} group-hover:scale-110 transition-transform`}>

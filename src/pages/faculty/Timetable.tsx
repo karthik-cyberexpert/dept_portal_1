@@ -9,196 +9,271 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  Building,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { getTimetable, TimetableSlot } from '@/lib/data-store';
 
-const timeSlots = [
-  '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
-  '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const periods = [
+  { num: 1, time: '8:30 - 9:15' },
+  { num: 2, time: '9:15 - 10:20' },
+  { num: 'BREAK', time: '10:20 - 10:30', isBreak: true, label: 'Short Break' },
+  { num: 3, time: '10:30 - 11:25' },
+  { num: 4, time: '11:25 - 12:20' },
+  { num: 'LUNCH', time: '12:20 - 1:20', isBreak: true, label: 'Lunch Break' },
+  { num: 5, time: '1:20 - 2:15' },
+  { num: 6, time: '2:15 - 3:10' },
+  { num: 7, time: '3:10 - 4:05' },
 ];
 
 const getSlotColor = (type: string) => {
   switch (type) {
-    case 'theory': return 'bg-primary/10 text-primary border-primary/20';
-    case 'lab': return 'bg-accent/10 text-accent border-accent/20';
-    case 'tutorial': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-    default: return 'bg-muted text-muted-foreground border-border';
+    case 'theory': return 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 hover:border-blue-400';
+    case 'lab': return 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 hover:border-purple-400';
+    case 'tutorial': return 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30 hover:border-amber-400';
+    case 'free': return 'bg-gradient-to-br from-gray-500/10 to-gray-600/10 border-gray-500/20';
+    default: return 'bg-muted';
   }
 };
 
 export default function Timetable() {
   const { user } = useAuth();
-  const [schedule, setSchedule] = useState<{day: string, slots: any[]}[]>([]);
+  const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
 
   useEffect(() => {
     if (!user) return;
     const allSlots = getTimetable();
     const mySlots = allSlots.filter(s => s.facultyId === user.id || s.facultyName === user.name);
-    
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const formattedSchedule = days.map(day => {
-        const dailySlots = mySlots.filter(s => s.day === day);
-        // Map data-store periods to display times
-        const mappedSlots = dailySlots.map(s => ({
-            time: getTimeFromPeriod(s.period),
-            subject: s.subject,
-            class: `${s.classId} (${s.sectionId})`, // Combine class and section
-            room: s.room,
-            type: s.type
-        }));
-        return { day, slots: mappedSlots };
-    });
-    setSchedule(formattedSchedule);
+    setTimetable(mySlots);
   }, [user]);
 
-  const getTimeFromPeriod = (p: number) => {
-    // Basic mapping, assuming 1-based periods starting at 9 AM
-    // This logic should ideally match the period definitions in Admin Timetable
-    const startHour = 8 + p; 
-    const ampm = startHour >= 12 ? 'PM' : 'AM';
-    const hour12 = startHour > 12 ? startHour - 12 : startHour;
-    return `${hour12.toString().padStart(2, '0')}:00 ${ampm}`;
+  const getSlot = (day: string, period: number | string) => {
+    return timetable.find(slot => slot.day === day && slot.period === period);
+  };
+
+  const hasSameContent = (day: string, p1: number | string, p2: number | string) => {
+    const s1 = getSlot(day, p1);
+    const s2 = getSlot(day, p2);
+    if (!s1 || !s2) return false;
+    return s1.subject === s2.subject && s1.type === s2.type && s1.subjectCode === s2.subjectCode;
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Academic Timetable 🗓️</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+             Academic Timetable 🗓️
+          </h1>
           <p className="text-muted-foreground mt-1">Your weekly teaching schedule and lab sessions</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-xl"><Download className="w-4 h-4 mr-2" /> Download PDF</Button>
-          <Button variant="gradient" className="rounded-xl shadow-lg shadow-primary/20">Sync Calendar</Button>
+          <Button variant="outline"><Download className="w-4 h-4 mr-2" /> Download PDF</Button>
+          <Button variant="gradient">Sync Calendar</Button>
         </div>
       </motion.div>
 
-      <Card className="glass-card border-none shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-white/5 flex flex-wrap items-center justify-between gap-4 bg-muted/20">
-           <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="rounded-full"><ChevronLeft className="w-5 h-5" /></Button>
-              <h2 className="text-lg font-black uppercase tracking-widest">March 2024</h2>
-              <Button variant="ghost" size="icon" className="rounded-full"><ChevronRight className="w-5 h-5" /></Button>
-           </div>
-           <div className="flex gap-2">
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 px-3 py-1">Theory</Badge>
-              <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20 px-3 py-1">Lab</Badge>
-              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-3 py-1">Tutorial</Badge>
-           </div>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500/40 to-cyan-500/40 border border-blue-500/50" />
+          <span className="text-sm text-muted-foreground">Theory</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-muted/30">
-                <th className="p-4 border-b border-r border-white/5 text-xs font-black uppercase tracking-tighter text-muted-foreground w-32">Time / Day</th>
-                {schedule.map(day => (
-                  <th key={day.day} className="p-4 border-b border-white/5 text-sm font-black uppercase tracking-widest">{day.day}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map(time => (
-                <tr key={time} className="group hover:bg-white/5 transition-colors">
-                  <td className="p-4 border-r border-b border-white/5 text-xs font-bold text-muted-foreground text-center bg-muted/10">{time}</td>
-                  {schedule.map(day => {
-                    // Fuzzy match time for now since period mapping might be exact hour vs range
-                    // In real app, we'd match exact period ID or time range
-                    const slot = day.slots.find(s => s.time === time);
-                    return (
-                      <td key={`${day.day}-${time}`} className="p-2 border-b border-white/5 min-w-[160px]">
-                        {slot ? (
-                          <motion.div
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            className={`p-4 rounded-2xl border ${getSlotColor(slot.type)} shadow-lg transition-all cursor-pointer`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                               <Badge className="bg-background/50 backdrop-blur-sm text-[10px] font-black uppercase tracking-tighter border-none">{slot.type}</Badge>
-                               <BookOpen className="w-3 h-3 opacity-50" />
-                            </div>
-                            <h4 className="text-sm font-black leading-tight mb-1">{slot.subject}</h4>
-                            <div className="space-y-1">
-                               <p className="text-[10px] font-bold opacity-80 flex items-center gap-1 uppercase">
-                                  <User className="w-2.5 h-2.5" /> {slot.class}
-                               </p>
-                               <p className="text-[10px] font-bold opacity-80 flex items-center gap-1 uppercase tracking-widest">
-                                  <MapPin className="w-2.5 h-2.5" /> {slot.room}
-                                </p>
-                            </div>
-                          </motion.div>
-                        ) : (
-                          <div className="h-full min-h-[80px] rounded-2xl border border-dashed border-white/5 group-hover:border-white/10 transition-colors" />
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-500/40 to-pink-500/40 border border-purple-500/50" />
+          <span className="text-sm text-muted-foreground">Lab</span>
         </div>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-         <Card className="glass-card p-8 border-none shadow-xl bg-gradient-to-br from-primary/5 to-transparent">
-            <h3 className="text-xl font-black mb-6 uppercase tracking-tight flex items-center gap-3 italic">
-               <Calendar className="w-6 h-6 text-primary" />
-               Upcoming Seminars
-            </h3>
-            <div className="space-y-4">
-               {[
-                 { event: 'Research Methodology', date: 'Upcoming Friday', status: 'Department' },
-                 { event: 'Curriculum Review', date: 'Nex Monday', status: 'Mandatory' },
-               ].map((item, idx) => (
-                 <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 group hover:border-primary/30 transition-all">
-                    <div>
-                       <p className="text-sm font-bold italic">{item.event}</p>
-                       <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{item.date}</p>
-                    </div>
-                    <Badge variant="secondary" className="bg-primary/20 text-primary border-none text-[9px] uppercase font-black tracking-widest">{item.status}</Badge>
-                 </div>
-               ))}
-            </div>
-         </Card>
-
-         <Card className="glass-card p-8 border-none shadow-xl bg-gradient-to-br from-accent/5 to-transparent">
-            <h3 className="text-xl font-black mb-6 uppercase tracking-tight flex items-center gap-3 italic">
-               <Clock className="w-6 h-6 text-accent" />
-               Teaching Load Analytics
-            </h3>
-            <div className="space-y-6">
-               <div className="flex justify-between items-end">
-                  <div>
-                     <p className="text-3xl font-black tracking-tighter italic">{schedule.reduce((acc, d) => acc + d.slots.length, 0)} hrs</p>
-                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Weekly Contact Load</p>
-                  </div>
-                  <Badge className="bg-emerald-500/20 text-emerald-500 border-none font-black text-[9px] tracking-widest uppercase px-3 py-1">Active Schedule</Badge>
-               </div>
-               <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 rounded-2xl bg-white/5 border border-white/5">
-                     <p className="text-xl font-black italic">{schedule.reduce((acc, d) => acc + d.slots.filter(s => s.type === 'theory').length, 0)}</p>
-                     <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Theory</p>
-                  </div>
-                  <div className="text-center p-4 rounded-2xl bg-white/5 border border-white/5">
-                     <p className="text-xl font-black italic">{schedule.reduce((acc, d) => acc + d.slots.filter(s => s.type === 'lab').length, 0)}</p>
-                     <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Lab</p>
-                  </div>
-                  <div className="text-center p-4 rounded-2xl bg-white/5 border border-white/5">
-                     <p className="text-xl font-black italic">{schedule.reduce((acc, d) => acc + d.slots.filter(s => s.type === 'tutorial').length, 0)}</p>
-                     <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Tutorial</p>
-                  </div>
-               </div>
-            </div>
-         </Card>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-500/40 to-orange-500/40 border border-amber-500/50" />
+          <span className="text-sm text-muted-foreground">Tutorial</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-500/20 to-gray-600/20 border border-gray-500/30" />
+          <span className="text-sm text-muted-foreground">Free</span>
+        </div>
       </div>
+
+      <Card className="glass-card border-white/10 overflow-hidden">
+        <CardHeader className="border-b border-white/10">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Weekly Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-hidden">
+            <table className="w-full table-fixed">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="p-2 text-left text-sm font-semibold text-muted-foreground w-32 sticky left-0 bg-background/95 backdrop-blur z-10">
+                        <Calendar className="w-4 h-4 inline mr-2" />
+                        Day
+                      </th>
+                      {periods.map((period) => (
+                        <th 
+                          key={period.num} 
+                          className={`p-2 text-center text-sm font-semibold ${period.isBreak ? 'w-10 p-0 bg-emerald-500/20 border-b-0' : ''}`}
+                        >
+                          {!period.isBreak && (
+                            <>
+                              <div>{`Period ${period.num}`}</div>
+                              <div className="text-xs font-normal text-muted-foreground">{period.time}</div>
+                            </>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {days.map((day, dayIndex) => (
+                      <tr key={day} className="border-b border-white/5">
+                        <td className="p-3 text-sm font-medium text-muted-foreground sticky left-0 bg-background/95 backdrop-blur z-10">
+                          {day}
+                        </td>
+                        {periods.map((period, index) => {
+                          // Handle Breaks - Vertical Column
+                          if (period.isBreak) {
+                             if (dayIndex === 0) {
+                               return (
+                                 <td 
+                                    key={`${day}-${period.num}`} 
+                                    rowSpan={days.length} 
+                                    className="p-0 bg-emerald-500/20 align-middle text-center w-10 border-x border-white/10 border-t-0"
+                                 >
+                                    <div className="h-full flex items-center justify-center writing-vertical-lr rotate-180 font-extrabold text-emerald-600 tracking-widest text-xl py-4 uppercase shadow-inner">
+                                      {period.label}
+                                    </div>
+                                 </td>
+                               );
+                             }
+                             return null;
+                          }
+
+                          // Handle Saturday Constraint
+                          if (day === 'Saturday' && typeof period.num === 'number' && period.num > 4) {
+                             return (
+                               <td key={`${day}-${period.num}`} className="p-1 bg-white/5 opacity-50 relative">
+                                  <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground font-medium -rotate-12 select-none">
+                                      No Class
+                                  </div>
+                               </td>
+                             );
+                          }
+
+                          // MERGE LOGIC
+                          const prevPeriod = periods[index - 1];
+                          if (prevPeriod && !prevPeriod.isBreak && hasSameContent(day, prevPeriod.num, period.num)) {
+                              return null;
+                          }
+
+                          let colSpan = 1;
+                          for (let k = index + 1; k < periods.length; k++) {
+                              const nextPeriod = periods[k];
+                              if (nextPeriod.isBreak) break; 
+                              if (hasSameContent(day, period.num, nextPeriod.num)) {
+                                  colSpan++;
+                              } else {
+                                  break;
+                              }
+                          }
+
+                          const slot = getSlot(day, period.num);
+                          return (
+                            <td 
+                                key={`${day}-${period.num}`} 
+                                className="p-1"
+                                colSpan={colSpan}
+                            >
+                              {slot ? (
+                                <motion.div
+                                  whileHover={{ scale: 1.02 }}
+                                  className={`p-2 rounded-lg border transition-all cursor-default min-h-[80px] flex flex-col justify-center ${getSlotColor(slot.type)}`}
+                                >
+                                  <div className="font-medium text-sm truncate">
+                                    {slot.subject}
+                                  </div>
+                                  {slot.subjectCode && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {slot.subjectCode}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1">
+                                      {slot.classId && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <User className="w-3 h-3" />
+                                          {slot.classId}-{slot.sectionId}
+                                        </div>
+                                      )}
+                                      {slot.room && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Building className="w-3 h-3" />
+                                          {slot.room}
+                                        </div>
+                                      )}
+                                  </div>
+                                </motion.div>
+                              ) : (
+                                <div className="h-full min-h-[80px] rounded-lg border border-dashed border-white/5 bg-white/[0.02] flex items-center justify-center opacity-50">
+                                    <span className="text-xs text-muted-foreground">Free</span>
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Subject Summary */}
+      <Card className="glass-card border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" />
+            Teaching Load Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+             {Array.from(new Set(timetable.map(t => t.subjectCode))).map((code, index) => {
+                 const subjectSlots = timetable.filter(t => t.subjectCode === code);
+                 if (subjectSlots.length === 0) return null;
+                 const subject = subjectSlots[0];
+                 return (
+                  <motion.div
+                    key={code}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="p-4 rounded-xl bg-white/5 border border-white/10"
+                  >
+                    <Badge className="mb-2">{code}</Badge>
+                    <div className="font-medium text-sm">{subject.subject}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                        {Array.from(new Set(subjectSlots.map(s => `${s.classId}-${s.sectionId}`))).join(', ')}
+                    </div>
+                    <div className="text-xs text-primary mt-2">{subjectSlots.length} hrs/week</div>
+                  </motion.div>
+                 );
+             })}
+             {timetable.length === 0 && <div className="text-muted-foreground text-sm col-span-5 text-center">No subjects scheduled</div>}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

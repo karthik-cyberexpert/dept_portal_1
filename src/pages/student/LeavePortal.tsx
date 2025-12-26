@@ -34,6 +34,8 @@ export default function LeavePortal() {
     contact: ''
   });
 
+  const [fileAttached, setFileAttached] = useState(false);
+
   useEffect(() => {
     if (user) {
       const students = getStudents();
@@ -51,6 +53,12 @@ export default function LeavePortal() {
 
     if (!formData.startDate || !formData.endDate || !formData.reason) {
         toast.error("Please fill in all required fields");
+        return;
+    }
+
+    // Conditional File Upload Validation
+    if (formData.type !== 'Casual Leave' && !fileAttached) {
+        toast.error(`Document attachment is required for ${formData.type}`);
         return;
     }
 
@@ -74,9 +82,11 @@ export default function LeavePortal() {
         reason: '',
         contact: ''
     });
+    setFileAttached(false); 
   };
 
   const isGraduated = studentData?.status === 'Graduated';
+  const isFileUploadRequired = formData.type !== 'Casual Leave';
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -211,6 +221,44 @@ export default function LeavePortal() {
                     onChange={e => setFormData({...formData, reason: e.target.value})}
                     className="min-h-[120px] bg-muted/50 border-transparent rounded-xl focus:bg-card transition-all" 
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                      Attach Document {isFileUploadRequired ? <span className="text-destructive">* (Required)</span> : <span className="text-muted-foreground">(Optional)</span>}
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input 
+                      type="file" 
+                      accept=".png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 1024 * 1024) {
+                            toast.error("File size must be less than 1MB");
+                            e.target.value = '';
+                            setFileAttached(false);
+                            return;
+                          }
+                          if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+                            toast.error("Only PNG, JPG, and JPEG files are allowed");
+                            e.target.value = '';
+                            setFileAttached(false);
+                            return;
+                          }
+                          // In a real app, you'd handle the file upload here
+                          toast.success("File attached successfully");
+                          setFileAttached(true);
+                        } else {
+                            setFileAttached(false);
+                        }
+                      }}
+                      className="bg-muted/50 border-transparent rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" 
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Max size: 1MB. Supported formats: PNG, JPG, JPEG.
+                  </p>
                 </div>
 
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">

@@ -539,6 +539,7 @@ export interface MarkEntry {
   verifiedBy?: string;
   createdAt: string;
   updatedAt: string;
+  breakdown?: any;
 }
 
 export function getMarks(): MarkEntry[] {
@@ -922,13 +923,12 @@ export interface Achievement {
   title: string;
   organization: string;
   date: string;
-  category: 'Technical' | 'Cultural' | 'Sports' | 'Social Service' | 'Leadership';
+  category: string;
   status: 'pending' | 'approved' | 'rejected';
   points: number;
   certificateUrl?: string;
   link?: string;
   remarks?: string;
-  level: 'College' | 'District' | 'State' | 'National' | 'International';
   createdAt: string;
 }
 
@@ -1025,3 +1025,48 @@ export function addQuizResult(result: Omit<QuizResult, 'id' | 'completedAt'>): Q
   saveData(QUIZ_RESULTS_KEY, all);
   return newResult;
 }
+
+// Notifications
+export const NOTIFICATIONS_KEY = 'college_portal_notifications';
+
+export interface Notification {
+  id: string;
+  recipientId: string; // Faculty ID
+  senderId: string;
+  senderName: string;
+  title: string;
+  message: string;
+  type: 'request' | 'system' | 'alert';
+  read: boolean;
+  createdAt: string;
+  metadata?: any;
+}
+
+export function getNotifications(userId: string): Notification[] {
+  const all = getData<Notification>(NOTIFICATIONS_KEY);
+  return all.filter(n => n.recipientId === userId);
+}
+
+export function addNotification(notification: Omit<Notification, 'id' | 'read' | 'createdAt'>): Notification {
+  const all = getData<Notification>(NOTIFICATIONS_KEY);
+  const newNotification: Notification = {
+    ...notification,
+    id: `notif-${Date.now()}-${Math.random()}`,
+    read: false,
+    createdAt: new Date().toISOString()
+  };
+  all.push(newNotification);
+  saveData(NOTIFICATIONS_KEY, all);
+  return newNotification;
+}
+
+export function markNotificationRead(id: string): void {
+  const all = getData<Notification>(NOTIFICATIONS_KEY);
+  const index = all.findIndex(n => n.id === id);
+  if (index !== -1) {
+    all[index].read = true;
+    saveData(NOTIFICATIONS_KEY, all);
+  }
+}
+
+
