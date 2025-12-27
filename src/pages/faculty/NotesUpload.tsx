@@ -21,95 +21,242 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getResources, addResource, deleteResource, getFaculty, Resource, Faculty } from '@/lib/data-store';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+interface Note {
+  id: number;
+  title: string;
+  description: string;
+  type: 'Note' | 'QP' | 'Manual' | 'Other';
+  file_type: string;
+  file_url: string;
+  file_size: string;
+  download_count: number;
+  is_published: boolean;
+  created_at: string;
+  subject_name: string;
+  subject_code: string;
+  section_name: string;
+  batch_name: string;
+}
+
+interface SubjectAllocation {
+  subject_id: number;
+  subject_name: string;
+  subject_code: string;
+  section_id: number;
+  section_name: string;
+  batch_name: string;
+}
 
 export default function NotesUpload() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [faculty, setFaculty] = useState<Faculty | null>(null);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [subjects, setSubjects] = useState<SubjectAllocation[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Form State
   const [newResource, setNewResource] = useState({
     title: '',
-    subjectCode: '',
-    classId: '',
+    subject_id: '',
+    section_id: '',
     type: 'Note' as 'Note' | 'QP' | 'Manual',
-    fileType: 'PDF'
+    file_type: 'PDF'
   });
+
+  // Fetch subjects (allocations) for the faculty
+  const loadSubjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3007/api/notes/my-subjects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubjects(data);
+        if (data.length > 0) {
+          setNewResource(prev => ({
+            ...prev,
+            subject_id: String(data[0].subject_id),
+            section_id: String(data[0].section_id)
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+    }
+  };
+
+  // Fetch notes uploaded by this faculty
+  const loadNotes = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3007/api/notes/my-notes', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotes(data);
+      }
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
-      const allFaculty = getFaculty();
-      const current = allFaculty.find(f => f.id === user.id || f.email === user.email);
-      if (current) {
-        setFaculty(current);
-        if (current.subjects.length > 0) {
-            setNewResource(prev => ({ ...prev, subjectCode: current.subjects[0], classId: current.sections[0] || '' }));
-        }
-      }
+      loadSubjects();
+      loadNotes();
     }
   }, [user]);
 
-  const loadResources = () => {
-    if (!user) return;
-    const all = getResources();
-    // Filter for this faculty if needed, or show all they uploaded
-    const myResources = all.filter(r => r.facultyId === user.id || r.facultyName === user.name);
-    setResources(myResources);
-  };
-
-  useEffect(() => {
-    loadResources();
-  }, [user]);
-
-  const handleUpload = () => {
-    if (!newResource.title || !newResource.subjectCode) {
-        toast.error('Please fill in all fields');
-        return;
+  const handleUpload = async () => {
+    if (!newResource.title || !newResource.subject_id) {
+      toast.error('Please fill in all fields');
+      return;
     }
 
     setIsUploading(true);
-    setTimeout(() => {
-        addResource({
-            title: newResource.title,
-            subject: newResource.subjectCode, // Use code as name for now or resolve
-            subjectCode: newResource.subjectCode,
-            classId: newResource.classId,
-            type: newResource.type,
-            fileType: newResource.fileType,
-            fileSize: '1.5 MB', // Mock size
-            facultyId: user?.id || '',
-            facultyName: user?.name || ''
-        });
-        toast.success('Resource uploaded successfully');
-        setIsUploading(false);
-        setIsUploadOpen(false);
-        setNewResource({ 
-          title: '', 
-          subjectCode: faculty?.subjects[0] || '', 
-          classId: faculty?.sections[0] || '', 
-          type: 'Note', 
-          fileType: 'PDF' 
-        });
-        loadResources();
-    }, 1500);
-  };
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Use FormData for file upload
+      const formData = new FormData();
+      formData.append('title', newResource.title);
+      formData.append('subject_id', newResource.subject_id);
+      if (newResource.section_id) {
+        formData.append('section_id', newResource.section_id);
+      }
+      formData.append('type', newResource.type);
+      
+      // Append file if selected
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
 
-  const handleDelete = (id: string) => {
-    if (deleteResource(id)) {
-        toast.success('Resource deleted');
-        loadResources();
+      const res = await fetch('http://localhost:3007/api/notes', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+          // Don't set Content-Type for FormData, browser will set it with boundary
+        },
+        body: formData
+      });
+
+      if (res.ok) {
+        toast.success('Resource uploaded successfully');
+        setIsUploadOpen(false);
+        setSelectedFile(null);
+        setNewResource({
+          title: '',
+          subject_id: subjects[0]?.subject_id ? String(subjects[0].subject_id) : '',
+          section_id: subjects[0]?.section_id ? String(subjects[0].section_id) : '',
+          type: 'Note',
+          file_type: 'PDF'
+        });
+        loadNotes();
+      } else {
+        const error = await res.json();
+        toast.error(error.message || 'Failed to upload');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Error uploading resource');
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const totalDownloads = resources.reduce((acc, curr) => acc + curr.downloads, 0);
+  const handleDelete = async (id: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3007/api/notes/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success('Resource deleted');
+        loadNotes();
+      } else {
+        toast.error('Failed to delete');
+      }
+    } catch (error) {
+      toast.error('Error deleting resource');
+    }
+  };
+
+  const handleDownload = async (note: Note) => {
+    if (!note.file_url) {
+      toast.error('No file attached to this note');
+      return;
+    }
+
+    try {
+      // Increment download count
+      await fetch(`http://localhost:3007/api/notes/${note.id}/download`, {
+        method: 'POST'
+      });
+
+      // Download the file using fetch + blob to force download
+      const fileUrl = `http://localhost:3007${note.file_url}`;
+      const response = await fetch(fileUrl);
+      
+      if (!response.ok) {
+        throw new Error('File not found');
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Extract original filename from URL or use title
+      const urlParts = note.file_url.split('/');
+      const filename = urlParts[urlParts.length - 1] || `${note.title}.${note.file_type.toLowerCase()}`;
+      
+      // Create blob URL and trigger download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.success('File downloaded successfully');
+      
+      // Refresh notes to update download count
+      loadNotes();
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Error downloading file');
+    }
+  };
+
+  const totalDownloads = notes.reduce((acc, curr) => acc + (curr.download_count || 0), 0);
+  
+  // Get unique subjects for dropdown
+  const uniqueSubjects = subjects.filter((s, i, arr) => 
+    arr.findIndex(x => x.subject_id === s.subject_id) === i
+  );
+  
+  // Get sections for selected subject
+  const sectionsForSubject = subjects.filter(
+    s => String(s.subject_id) === newResource.subject_id
+  );
 
   return (
+    <>
     <div className="space-y-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -141,22 +288,22 @@ export default function NotesUpload() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Subject</Label>
-                            <Select value={newResource.subjectCode} onValueChange={v => setNewResource({...newResource, subjectCode: v})}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                            <Select value={newResource.subject_id} onValueChange={v => setNewResource({...newResource, subject_id: v, section_id: ''})}>
+                                <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                                 <SelectContent>
-                                    {faculty?.subjects.map(sub => (
-                                        <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                                    {uniqueSubjects.map(sub => (
+                                        <SelectItem key={sub.subject_id} value={String(sub.subject_id)}>{sub.subject_name} ({sub.subject_code})</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label>Batch / Section</Label>
-                            <Select value={newResource.classId} onValueChange={v => setNewResource({...newResource, classId: v})}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                            <Select value={newResource.section_id} onValueChange={v => setNewResource({...newResource, section_id: v})}>
+                                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
                                 <SelectContent>
-                                    {faculty?.sections.map(sec => (
-                                        <SelectItem key={sec} value={sec}>{sec}</SelectItem>
+                                    {sectionsForSubject.map(sec => (
+                                        <SelectItem key={sec.section_id} value={String(sec.section_id)}>{sec.batch_name} - {sec.section_name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -175,22 +322,41 @@ export default function NotesUpload() {
                     </div>
                     <div className="space-y-2">
                         <Label>Upload File</Label>
-                         <div className="flex items-center gap-2">
-                            <Input 
-                                type="file" 
-                                accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                                className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        // Mock handling - just logging for now as requested
-                                        console.log("Selected file:", file.name);
-                                        toast.success(`File selected: ${file.name}`);
-                                    }
-                                }}
-                            />
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">Supported format: .pdf, .docs, .xlsx, .jpg, .png</p>
+                        {selectedFile ? (
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                                <FileText className="w-8 h-8 text-primary" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold truncate">{selectedFile.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                </div>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-destructive hover:text-destructive/80"
+                                    onClick={() => setSelectedFile(null)}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <Input 
+                                    type="file" 
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*"
+                                    className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setSelectedFile(file);
+                                            toast.success(`File selected: ${file.name}`);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">Supported: PDF, Word, Excel, PowerPoint, Images (Max 25MB)</p>
                     </div>
                 </div>
                 <DialogFooter>
@@ -213,7 +379,7 @@ export default function NotesUpload() {
                      <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                     <p className="text-xl font-black">{resources.length}</p>
+                     <p className="text-xl font-black">{notes.length}</p>
                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Total Files</p>
                   </div>
                </div>
@@ -255,7 +421,7 @@ export default function NotesUpload() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                <AnimatePresence>
-                  {resources.filter(n => n.title.toLowerCase().includes(searchTerm.toLowerCase())).map((note, idx) => (
+               {notes.filter(n => n.title.toLowerCase().includes(searchTerm.toLowerCase())).map((note, idx) => (
                      <motion.div
                         key={note.id}
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -263,25 +429,33 @@ export default function NotesUpload() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: idx * 0.05 }}
                      >
-                        <Card className="glass-card border-none p-5 group hover:shadow-glow transition-all">
+                        <Card className="glass-card border-none p-5 group hover:shadow-glow transition-all cursor-pointer" onClick={() => setSelectedNote(note)}>
                            <div className="flex gap-4">
                               <div className="w-14 h-14 rounded-2xl bg-muted/50 flex flex-col items-center justify-center text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary transition-colors">
                                  <FileText className="w-6 h-6" />
-                                 <span className="text-[8px] font-black leading-none mt-1 uppercase">{note.fileType}</span>
+                                 <span className="text-[8px] font-black leading-none mt-1 uppercase">{note.file_type}</span>
                               </div>
                               <div className="flex-1 min-w-0">
                                  <div className="flex items-center justify-between mb-1">
-                                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter border-white/10">{note.subjectCode}</Badge>
-                                    <div className="flex gap-1">
-                                       <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg" disabled><Download className="w-4 h-4" /></Button>
+                                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter border-white/10">{note.subject_code}</Badge>
+                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                       <Button 
+                                         variant="ghost" 
+                                         size="icon" 
+                                         className="w-8 h-8 rounded-lg hover:text-primary" 
+                                         disabled={!note.file_url}
+                                         onClick={() => handleDownload(note)}
+                                       >
+                                         <Download className="w-4 h-4" />
+                                       </Button>
                                        <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg text-destructive/50 hover:text-destructive" onClick={() => handleDelete(note.id)}><Trash2 className="w-4 h-4" /></Button>
                                     </div>
                                  </div>
                                  <h4 className="font-bold text-sm truncate mb-3">{note.title}</h4>
                                  <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground">
-                                    <span className="flex items-center gap-1 uppercase tracking-widest"><Users className="w-3 h-3" /> {note.classId}</span>
-                                    <span className="flex items-center gap-1 uppercase tracking-widest"><Clock className="w-3 h-3" /> {new Date(note.createdAt).toLocaleDateString()}</span>
-                                    <span className="ml-auto text-primary px-2 py-0.5 rounded-full bg-primary/10">{note.downloads} dl</span>
+                                    <span className="flex items-center gap-1 uppercase tracking-widest"><Users className="w-3 h-3" /> {note.section_name || 'All'}</span>
+                                    <span className="flex items-center gap-1 uppercase tracking-widest"><Clock className="w-3 h-3" /> {new Date(note.created_at).toLocaleDateString()}</span>
+                                    <span className="ml-auto text-primary px-2 py-0.5 rounded-full bg-primary/10">{note.download_count} dl</span>
                                  </div>
                               </div>
                            </div>
@@ -290,7 +464,7 @@ export default function NotesUpload() {
                   ))}
                </AnimatePresence>
 
-               {resources.length === 0 && (
+               {notes.length === 0 && (
                    <div className="lg:col-span-2 text-center py-10 text-muted-foreground border-2 border-dashed border-white/5 rounded-2xl">
                        No resources uploaded yet.
                    </div>
@@ -311,5 +485,79 @@ export default function NotesUpload() {
          </div>
       </div>
     </div>
+
+      {/* View Note Dialog */}
+      <Dialog open={!!selectedNote} onOpenChange={(open) => !open && setSelectedNote(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex flex-col items-center justify-center text-primary">
+                <FileText className="w-6 h-6" />
+                <span className="text-[8px] font-black leading-none mt-0.5 uppercase">{selectedNote?.file_type}</span>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{selectedNote?.title}</p>
+                <Badge variant="outline" className="mt-1 text-[9px]">{selectedNote?.subject_code} - {selectedNote?.subject_name}</Badge>
+              </div>
+            </DialogTitle>
+            <DialogDescription className="sr-only">View note details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedNote?.description && (
+              <div>
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">Description</Label>
+                <p className="mt-1 text-sm">{selectedNote.description}</p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">Type</Label>
+                <p className="mt-1 text-sm font-bold">
+                  {selectedNote?.type === 'Note' && 'Lecture Notes'}
+                  {selectedNote?.type === 'QP' && 'Question Paper'}
+                  {selectedNote?.type === 'Manual' && 'Lab Manual'}
+                  {selectedNote?.type === 'Other' && 'Other'}
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">Section</Label>
+                <p className="mt-1 text-sm font-bold">{selectedNote?.section_name || 'All Sections'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">File Size</Label>
+                <p className="mt-1 text-sm font-bold">{selectedNote?.file_size || 'N/A'}</p>
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">Downloads</Label>
+                <p className="mt-1 text-sm font-bold text-primary">{selectedNote?.download_count || 0}</p>
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">Uploaded</Label>
+                <p className="mt-1 text-sm font-bold">{selectedNote?.created_at ? new Date(selectedNote.created_at).toLocaleDateString() : 'N/A'}</p>
+              </div>
+            </div>
+            {!selectedNote?.file_url && (
+              <div className="p-6 rounded-xl border-2 border-dashed border-white/10 text-center">
+                <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No file attached to this note</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">File upload functionality coming soon</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedNote(null)}>Close</Button>
+            <Button 
+              disabled={!selectedNote?.file_url}
+              onClick={() => selectedNote && handleDownload(selectedNote)}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download File
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

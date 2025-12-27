@@ -3,15 +3,29 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_123';
 
+import { pool } from './db.js';
+
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) return res.sendStatus(401);
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
     if (err) return res.sendStatus(403);
-    (req as any).user = user;
-    next();
+    
+    // Safety Check: Ensure user still exists in DB
+    try {
+        const [rows]: any = await pool.query('SELECT id, role FROM users WHERE id = ?', [user.id]);
+        if (rows.length === 0) {
+             console.log('Token valid but User ID not found in DB (Stale Token). Rejecting.');
+             return res.sendStatus(401); 
+        }
+        (req as any).user = user;
+        next();
+    } catch(dbErr) {
+        console.error('Auth DB check failed:', dbErr);
+        res.sendStatus(500);
+    }
   });
 };

@@ -1,8 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { pool } from './db.js';
 import { authenticateToken } from './auth.middleware.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -17,6 +22,9 @@ import studentRoutes from './student.routes.js';
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/academic', academicRoutes);
@@ -26,6 +34,19 @@ app.use('/api/tutors', tutorRoutes);
 
 import facultyRoutes from './faculty.routes.js';
 app.use('/api/faculty', facultyRoutes);
+
+import notesRoutes from './notes.routes.js';
+app.use('/api/notes', notesRoutes);
+
+import assignmentRoutes from './assignment.routes.js';
+app.use('/api/assignments', assignmentRoutes);
+
+import circularRoutes from './circular.routes.js';
+app.use('/api/circulars', circularRoutes);
+
+import classStatsRoutes from './class-stats.routes.js';
+app.use('/api/class-stats', classStatsRoutes);
+
 
 // Health Check
 app.get('/api/health', async (req, res) => {

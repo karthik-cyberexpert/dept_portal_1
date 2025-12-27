@@ -22,6 +22,7 @@ interface ClassSection {
   subject: string;
   code: string;
   section: string;
+  batch: string;
   students: number;
   attendance: number;
   progress: number;
@@ -44,49 +45,53 @@ export default function MyClasses() {
     }
   }, [user]);
 
-  const loadFacultyClasses = () => {
-    const allFaculty = getFaculty();
-    const currentFaculty = allFaculty.find(f => f.id === user?.id || f.email === user?.email);
-    
-    if (!currentFaculty) return;
-
-    const allStudents = getStudents();
-
-    // Generate class list based on assigned subjects and sections
-    // In a real app, there would be a distinct "ClassSchedule" or "CourseOffering" entity
-    // Here we cross-product subjects and sections to simulate the classes they teach
-    const generatedClasses: ClassSection[] = [];
-    
-    currentFaculty.subjects.forEach((subject, subIdx) => {
-      currentFaculty.sections.forEach((section, secIdx) => {
-        // Mocking some scheduling and progress data
-        const studentsInSection = allStudents.filter(s => s.section === section.split('-')[1]); // assuming 'CSE-A' -> 'A'
-        
-        generatedClasses.push({
-          id: `${subIdx}-${secIdx}`,
-          subject: subject,
-          code: `CS${300 + subIdx + 1}`, // Mock code
-          section: section,
-          students: studentsInSection.length || 60, // Fallback to 60 if no students match exactly
-          attendance: 85 + Math.floor(Math.random() * 10), // Mock attendance
-          progress: 40 + Math.floor(Math.random() * 40), // Mock progress
-          nextClass: Math.random() > 0.5 ? 'Today, 10:00 AM' : 'Tomorrow, 2:00 PM', // Mock time
-          room: `LH-${100 + subIdx + secIdx}` // Mock room
-        });
+  const loadFacultyClasses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3007/api/class-stats', {
+        headers: { Authorization: `Bearer ${token}` }
       });
-    });
 
-    setClasses(generatedClasses);
+      if (res.ok) {
+        const data = await res.json();
+        
+        if (data && Array.isArray(data)) {
+          const formattedClasses: ClassSection[] = data.map((stat: any) => ({
+            id: String(stat.allocation_id),
+            subject: stat.subject_name || 'N/A',
+            code: stat.subject_code || 'N/A',
+            section: stat.section_name || 'N/A',
+            batch: stat.batch_name || 'N/A',
+            students: stat.student_count || 0,
+            attendance: stat.attendance_rate || 0,
+            progress: stat.progress || 0,
+            nextClass: stat.next_class || 'No upcoming class',
+            room: stat.room_number || 'TBA'
+          }));
 
-    // Calculate aggregated stats
-    const totalStudents = generatedClasses.reduce((acc, curr) => acc + curr.students, 0);
-    const avgAttendance = generatedClasses.reduce((acc, curr) => acc + curr.attendance, 0) / (generatedClasses.length || 1);
+          setClasses(formattedClasses);
 
-    setStats({
-      totalCourses: generatedClasses.length,
-      totalStudents,
-      avgAttendance: Number(avgAttendance.toFixed(1))
-    });
+          // Calculate stats
+          const totalStudents = formattedClasses.reduce((acc, curr) => acc + curr.students, 0);
+          const avgAttendance = formattedClasses.length > 0 
+            ? formattedClasses.reduce((acc, curr) => acc + curr.attendance, 0) / formattedClasses.length 
+            : 0;
+
+          setStats({
+            totalCourses: formattedClasses.length,
+            totalStudents,
+            avgAttendance: Number(avgAttendance.toFixed(1))
+          });
+        } else {
+          setClasses([]);
+          setStats({ totalCourses: 0, totalStudents: 0, avgAttendance: 0 });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading faculty classes:', error);
+      setClasses([]);
+      setStats({ totalCourses: 0, totalStudents: 0, avgAttendance: 0 });
+    }
   };
 
   if (!user || user.role !== 'faculty') {
@@ -107,7 +112,7 @@ export default function MyClasses() {
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Classes & Courses 📚</h1>
+          <h1 className="text-3xl font-bold tracking-tight">My Subjects 📚</h1>
           <p className="text-muted-foreground mt-1">Welcome back, {user.name}. Monitor course progress and student engagement.</p>
         </div>
         <div className="flex gap-3">
@@ -171,7 +176,7 @@ export default function MyClasses() {
                     <div className="lg:w-72 p-8 bg-muted/30 flex flex-col justify-center border-r border-white/5">
                        <Badge className="w-fit mb-3 bg-primary/20 text-primary border-none text-[10px] font-black uppercase tracking-widest">{cls.code}</Badge>
                        <h3 className="text-xl font-black leading-tight mb-2 group-hover:text-primary transition-colors">{cls.subject}</h3>
-                       <p className="text-sm font-bold text-muted-foreground">{cls.section}</p>
+                       <p className="text-sm font-bold text-muted-foreground">{cls.batch} - Section {cls.section}</p>
                     </div>
                     
                     <div className="flex-1 p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-center">

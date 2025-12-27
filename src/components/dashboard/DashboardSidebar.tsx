@@ -61,7 +61,7 @@ const facultyLinks: SidebarLink[] = [
     icon: Calendar, 
     path: '/faculty/classes-menu',
     children: [
-      { label: 'Course and Syllabus', icon: BookOpen, path: '/faculty/classes' },
+      { label: 'My Subjects', icon: BookOpen, path: '/faculty/classes' },
       { label: 'Students', icon: Users, path: '/faculty/students' }
     ]
   },

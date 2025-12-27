@@ -10,18 +10,32 @@ import {
   GraduationCap,
   Edit2,
   BookOpen,
-  Briefcase
+  Briefcase,
+  Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { getFaculty, Faculty } from '@/lib/data-store';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function PersonalDetails() {
   const { user } = useAuth();
   const [faculty, setFaculty] = React.useState<Faculty | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [formData, setFormData] = React.useState({
+    phone: '',
+    address: '',
+    qualification: '',
+    specialization: '',
+    office: ''
+  });
 
   React.useEffect(() => {
     if (user && user.role === 'faculty') {
@@ -34,15 +48,21 @@ export default function PersonalDetails() {
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Transform for UI if needed or ensure backend matches
-                    // Backend returns: qualification, specialization, experience, etc.
-                    // Frontend expects: designation, employeeId (mapped from id/code?), etc.
-                    
-                    setFaculty({
+                    const profileData = {
                         ...data,
-                        designation: 'Assistant Professor', // Default or from DB if added
-                        employeeId: `FAC-${data.id}`,
-                        // Map allocations to UI expected format if needed, currently UI doesn't list them in detail but good to have
+                        designation: data.designation || 'Assistant Professor', 
+                        employeeId: data.employeeId || `FAC-${data.id}`,
+                    };
+                    
+                    setFaculty(profileData);
+                    
+                    // Initialize form data with current values
+                    setFormData({
+                        phone: data.phone || '',
+                        address: data.address || '',
+                        qualification: data.qualification || '',
+                        specialization: data.specialization || '',
+                        office: data.office || ''
                     });
                 }
              } catch (e) {
@@ -52,6 +72,35 @@ export default function PersonalDetails() {
         fetchProfile();
     }
   }, [user]);
+
+  const handleUpdateProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3007/api/faculty/profile', {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        const updatedData = await res.json();
+        setFaculty({
+          ...faculty!,
+          ...updatedData
+        });
+        setIsEditDialogOpen(false);
+        toast.success('Profile updated successfully!');
+      } else {
+        toast.error('Failed to update profile');
+      }
+    } catch (e) {
+      console.error('Error updating profile:', e);
+      toast.error('An error occurred while updating profile');
+    }
+  };
 
   if (!faculty) {
     return (
@@ -73,7 +122,11 @@ export default function PersonalDetails() {
           <h1 className="text-3xl font-bold italic bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Faculty Profile</h1>
           <p className="text-muted-foreground mt-1">Professional information & academic credentials</p>
         </div>
-        <Button variant="outline" className="rounded-xl border-primary/20 hover:bg-primary/5 transition-all">
+        <Button 
+          variant="outline" 
+          className="rounded-xl border-primary/20 hover:bg-primary/5 transition-all"
+          onClick={() => setIsEditDialogOpen(true)}
+        >
           <Edit2 className="w-4 h-4 mr-2" />
           Update Details
         </Button>
@@ -188,48 +241,155 @@ export default function PersonalDetails() {
             </Card>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="glass-card p-8 border-none shadow-xl">
-              <h3 className="text-lg font-black mb-6 flex items-center gap-3">
-                <GraduationCap className="w-6 h-6 text-accent" />
-                Academic Qualifications
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {faculty.education.map((edu, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-muted/40 border border-white/5 hover:border-accent/30 transition-all group">
-                    <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent mb-3 group-hover:scale-110 transition-transform">
-                      {idx === 0 ? <ShieldCheck className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="glass-card p-8 border-none shadow-xl h-full">
+                <h3 className="text-lg font-black mb-6 flex items-center gap-3">
+                  <GraduationCap className="w-6 h-6 text-accent" />
+                  Academic Qualifications
+                </h3>
+                <div className="space-y-4">
+                  {faculty.education.map((edu, idx) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-muted/40 border border-white/5 hover:border-accent/30 transition-all group">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent flex-shrink-0 group-hover:scale-110 transition-transform">
+                          {idx === 0 ? <ShieldCheck className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-base font-black leading-tight mb-1">{edu.degree}</p>
+                          <p className="text-xs text-muted-foreground font-medium mb-2">{edu.institution}</p>
+                          <Badge variant="outline" className="bg-accent/5 text-accent border-accent/20">Class of {edu.year}</Badge>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-base font-black leading-tight mb-1">{edu.degree}</p>
-                    <p className="text-xs text-muted-foreground font-medium mb-2">{edu.institution}</p>
-                    <Badge variant="outline" className="bg-accent/5 text-accent border-accent/20">Class of {edu.year}</Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </motion.div>
+                  ))}
+                </div>
+              </Card>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="glass-card p-6 border-none shadow-xl flex items-center gap-6">
-              <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
-                 <Building2 className="w-8 h-8" />
-              </div>
-              <div>
-                <h4 className="font-black text-sm uppercase tracking-widest text-muted-foreground">Registered Address</h4>
-                <p className="text-sm font-bold leading-relaxed max-w-md">{faculty.address}</p>
-              </div>
-            </Card>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card className="glass-card p-8 border-none shadow-xl h-full flex flex-col">
+                <h3 className="text-lg font-black mb-6 flex items-center gap-3">
+                  <Building2 className="w-6 h-6 text-secondary" />
+                  Registered Address
+                </h3>
+                <div className="flex items-start gap-6 flex-1">
+                  <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary flex-shrink-0">
+                    <Building2 className="w-8 h-8" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold leading-relaxed">{faculty.address}</p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
         </div>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Update Profile Details</DialogTitle>
+            <DialogDescription>
+              Make changes to your profile information. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-6 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="phone" className="font-bold uppercase text-xs tracking-wider">
+                Phone Number
+              </Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+91 9876543210"
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="qualification" className="font-bold uppercase text-xs tracking-wider">
+                Qualification
+              </Label>
+              <Input
+                id="qualification"
+                value={formData.qualification}
+                onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                placeholder="Ph.D, M.Tech, etc."
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="specialization" className="font-bold uppercase text-xs tracking-wider">
+                Specialization
+              </Label>
+              <Input
+                id="specialization"
+                value={formData.specialization}
+                onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                placeholder="Machine Learning, Data Science, etc."
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="office" className="font-bold uppercase text-xs tracking-wider">
+                Office Location
+              </Label>
+              <Input
+                id="office"
+                value={formData.office}
+                onChange={(e) => setFormData({ ...formData, office: e.target.value })}
+                placeholder="Room 301, CS Block"
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="address" className="font-bold uppercase text-xs tracking-wider">
+                Address
+              </Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Enter your residential address"
+                className="rounded-xl min-h-[100px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateProfile}
+              className="rounded-xl bg-primary hover:bg-primary/90"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

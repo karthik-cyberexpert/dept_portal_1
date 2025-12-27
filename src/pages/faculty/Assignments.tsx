@@ -21,19 +21,65 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuLabel, 
+    DropdownMenuSeparator, 
+    DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from '@/contexts/AuthContext';
-import { getAssignments, addAssignment, getSubmissions, Assignment, getFaculty, getStudents } from '@/lib/data-store';
 import { toast } from 'sonner';
+import { Pagination } from '@/components/ui/pagination';
+
+interface Assignment {
+  id: number;
+  title: string;
+  description: string;
+  subject_name: string;
+  subject_code: string;
+  section_name: string;
+  batch_name: string;
+  due_date: string;
+  max_score: number;
+  attachment_url: string | null;
+  created_at: string;
+  student_count: number;
+  submission_count: number;
+  graded_count: number;
+}
+
+interface SubjectAllocation {
+  allocation_id: number;
+  subject_id: number;
+  subject_name: string;
+  subject_code: string;
+  section_id: number;
+  section_name: string;
+  batch_id: number;
+  batch_name: string;
+}
 
 export default function Assignments() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [allocations, setAllocations] = useState<SubjectAllocation[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // View configuration
   const [viewMode, setViewMode] = useState<'current' | 'history'>('current');
@@ -41,80 +87,277 @@ export default function Assignments() {
   // Form State
   const [newAssignment, setNewAssignment] = useState({
     title: '',
-    subject: '',
-    subjectCode: '',
-    classId: '',
-    sectionId: '',
+    subject_id: '',
+    batch_id: '',
+    section_id: '',
     dueDate: '',
-    maxMarks: 100,
+    maxScore: 100,
     description: '',
     enableAlert: false
   });
 
-  const loadData = () => {
-    if (!user) return;
-    const allAssignments = getAssignments();
-    // Filter for this faculty
-    const myAssignments = allAssignments.filter(a => a.facultyId === user.id || a.facultyName === user.name);
-    setAssignments(myAssignments);
+  const loadAllocations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3007/api/assignments/my-allocations', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAllocations(data);
+      }
+    } catch (error) {
+      console.error('Error fetching allocations:', error);
+    }
+  };
 
-    const allSubmissions = getSubmissions();
-    setSubmissions(allSubmissions);
+  const loadAssignments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3007/api/assignments/my-assignments', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAssignments(data);
+      }
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadData();
+    if (user) {
+      loadAllocations();
+      loadAssignments();
+    }
   }, [user]);
 
-  const handleCreate = () => {
-    if (!user || !newAssignment.title || !newAssignment.subject || !newAssignment.dueDate) {
-        toast.error('Please fill in all required fields');
-        return;
+  const handleCreate = async () => {
+    if (!user || !newAssignment.title || !newAssignment.subject_id || !newAssignment.dueDate) {
+      toast.error('Please fill in all required fields');
+      return;
     }
 
-    // Basic subject code extraction or mapping could be better
-    const subjectCode = newAssignment.subject.substring(0, 3).toUpperCase(); 
+    // Find the subject_allocation_id based on subject, batch, and section
+    const allocation = allocations.find(a => 
+      a.subject_id === parseInt(newAssignment.subject_id) &&
+      (!newAssignment.batch_id || a.batch_id === parseInt(newAssignment.batch_id)) &&
+      (!newAssignment.section_id || a.section_id === parseInt(newAssignment.section_id))
+    );
 
-    addAssignment({
-        title: newAssignment.title,
-        description: newAssignment.description,
-        subject: newAssignment.subject,
-        subjectCode: subjectCode,
-        facultyId: user.id,
-        facultyName: user.name,
-        classId: newAssignment.classId,
-        sectionId: newAssignment.sectionId,
-        dueDate: newAssignment.dueDate,
-        maxMarks: Number(newAssignment.maxMarks),
-        status: 'active'
-    });
+    if (!allocation) {
+      toast.error('Invalid subject/batch/section combination');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('title', newAssignment.title);
+      formData.append('subject_allocation_id', String(allocation.allocation_id));
+      formData.append('due_date', newAssignment.dueDate);
+      formData.append('max_score', String(newAssignment.maxScore));
+      if (newAssignment.description) {
+        formData.append('description', newAssignment.description);
+      }
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+
+      const url = isEditMode && editingId 
+        ? `http://localhost:3007/api/assignments/${editingId}`
+        : 'http://localhost:3007/api/assignments';
+      
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        toast.success(`Assignment ${isEditMode ? 'updated' : 'created'} successfully`);
+        if (newAssignment.enableAlert && !isEditMode) {
+          toast.info('Alert sent to students!');
+        }
+        setIsCreateOpen(false);
+        setIsEditMode(false);
+        setEditingId(null);
+        setSelectedFile(null);
+        setNewAssignment({
+          title: '',
+          subject_id: '',
+          batch_id: '',
+          section_id: '',
+          dueDate: '',
+          maxScore: 100,
+          description: '',
+          enableAlert: false
+        });
+        loadAssignments();
+      } else {
+        const error = await res.json();
+        toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'create'} assignment`);
+      }
+    } catch (error) {
+      console.error(`${isEditMode ? 'Update' : 'Create'} assignment error:`, error);
+      toast.error(`Error ${isEditMode ? 'updating' : 'creating'} assignment`);
+    }
+  };
+
+  const handleEdit = (assignment: Assignment) => {
+    // Find the allocation to get subject, batch, section IDs
+    // We have: subject_name, batch_name etc in assignment.
+    // Ideally we should match names or have IDs. 
+    // Luckily we do have allocations list.
+    // The assignment usually has subject_allocation_id if we fetched it, but getFacultyAssignments returns it.
+    // Wait, getFacultyAssignments returns subject_allocation_id as well!
+    // But my current Assignment interface removed it? No, checking interface...
+    // Interface check: I removed it? Lines 30-42 don't show subject_allocation_id.
+    // But the backend query DOES return it.
+    // I should add `subject_allocation_id` to Assignment interface or infer it.
+    // Let's assume I find it via matching names/codes from allocations.
     
-    if (newAssignment.enableAlert) {
-        toast.info("Alert sent to students!");
-    }
+    // Actually, let's update Assignment interface to include subject_allocation_id because backend sends it.
+    // But for now, let's try to reverse lookup.
+    
+    const allocation = allocations.find(a => 
+      a.subject_name === assignment.subject_name &&
+      a.batch_name === assignment.batch_name && 
+      (assignment.section_name === 'All Sections' ? true : a.section_name === assignment.section_name)
+    );
 
-    toast.success('Assignment created successfully');
-    setIsCreateOpen(false);
-    setNewAssignment({ title: '', subject: '', subjectCode: '', classId: '', sectionId: '', dueDate: '', maxMarks: 100, description: '', enableAlert: false });
-    loadData();
+    // If section specific, fine. If not, how do we know?
+    // The backend join says: JOIN sections sec ON sa.section_id = sec.id
+    // So there IS a section. Assignments are always tied to a section via allocation.
+    
+    // So we can find allocation by matching subject_name, batch_name, section_name.
+    
+    // Correct way:
+    setNewAssignment({
+      title: assignment.title,
+      subject_id: allocation ? String(allocation.subject_id) : '',
+      batch_id: allocation ? String(allocation.batch_id) : '',
+      section_id: allocation ? String(allocation.section_id) : '',
+      dueDate: assignment.due_date.split('T')[0], // format date for input
+      maxScore: assignment.max_score,
+      description: assignment.description,
+      enableAlert: false
+    });
+    setEditingId(assignment.id);
+    setIsEditMode(true);
+    setIsCreateOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this assignment?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3007/api/assignments/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        toast.success('Assignment deleted');
+        loadAssignments();
+      } else {
+        toast.error('Failed to delete assignment');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Error deleting assignment');
+    }
+  };
+
+  const handleEvaluate = async (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setIsSubmissionsOpen(true);
+    // Fetch submissions
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3007/api/assignments/${assignment.id}/submissions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data);
+      }
+    } catch (error) {
+      console.error('Fetch submissions error:', error);
+    }
   };
 
   // Stats
   const totalTasks = assignments.length;
-  const activeTasks = assignments.filter(a => new Date(a.dueDate) >= new Date()).length; // Simple check
-  // Evaluation rate: evaluated submissions / total submissions
-  // For now verify against submission status 'graded'
-  const myAssignmentIds = assignments.map(a => a.id);
-  const mySubmissions = submissions.filter(s => myAssignmentIds.includes(s.assignmentId));
-  const gradedCount = mySubmissions.filter(s => s.status === 'graded').length;
-  const evaluationRate = mySubmissions.length > 0 ? Math.round((gradedCount / mySubmissions.length) * 100) : 0;
+  const activeTasks = assignments.filter(a => new Date(a.due_date) >= new Date()).length;
+  
+  // Calculate aggregate stats from real data
+  const totalSubmissions = assignments.reduce((acc, curr) => acc + curr.submission_count, 0);
+  const totalGraded = assignments.reduce((acc, curr) => acc + curr.graded_count, 0);
+  const evaluationRate = totalSubmissions > 0 ? Math.round((totalGraded / totalSubmissions) * 100) : 0;
   
   const dueApproaching = assignments.filter(a => {
-      const due = new Date(a.dueDate);
+      const due = new Date(a.due_date);
       const today = new Date();
       const diff = due.getTime() - today.getTime();
       return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000; // 3 days
   }).length;
+
+  // Get unique subjects for the faculty
+  const uniqueSubjects = Array.from(
+    new Map(allocations.map(a => [a.subject_id, a])).values()
+  );
+
+  // Get batches for selected subject
+  const batchesForSubject = newAssignment.subject_id
+    ? Array.from(
+        new Map(
+          allocations
+            .filter(a => a.subject_id === parseInt(newAssignment.subject_id))
+            .map(a => [a.batch_id, a])
+        ).values()
+      )
+    : [];
+
+  // Get sections for selected subject and batch
+  const sectionsForSubjectBatch = newAssignment.subject_id
+    ? allocations.filter(
+        a =>
+          a.subject_id === parseInt(newAssignment.subject_id) &&
+          (!newAssignment.batch_id || a.batch_id === parseInt(newAssignment.batch_id))
+      )
+    : [];
+
+  // Filter assignments based on search and view mode
+  const filteredAssignmentsData = assignments.filter(a => {
+    const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const dueDate = new Date(a.due_date);
+    const today = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(today.getMonth() - 6);
+    
+    const isHistory = dueDate < sixMonthsAgo;
+    const matchesView = viewMode === 'current' ? !isHistory : isHistory;
+
+    return matchesSearch && matchesView;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAssignmentsData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedAssignments = filteredAssignmentsData.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when search or view changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, viewMode]);
 
   return (
     <div className="space-y-8">
@@ -154,10 +397,10 @@ export default function Assignments() {
                     Create Assignment
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Create New Assignment</DialogTitle>
-                    <DialogDescription>Set up a new assignment for your students.</DialogDescription>
+                    <DialogTitle>{isEditMode ? 'Edit Assignment' : 'Create New Assignment'}</DialogTitle>
+                    <DialogDescription>{isEditMode ? 'Update assignment details.' : 'Set up a new assignment for your students.'}</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                     <div className="md:col-span-2">
@@ -170,16 +413,59 @@ export default function Assignments() {
                     </div>
                     <div>
                         <Label>Subject</Label>
-                         <Select onValueChange={v => setNewAssignment({...newAssignment, subject: v})}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select Subject" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {/* Ideally fetch subjects from Faculty profile */}
-                                <SelectItem value="Data Structures">Data Structures</SelectItem>
-                                <SelectItem value="DBMS">DBMS</SelectItem>
-                                <SelectItem value="Operating Systems">Operating Systems</SelectItem>
-                            </SelectContent>
+                        <Select 
+                          value={newAssignment.subject_id} 
+                          onValueChange={v => setNewAssignment({...newAssignment, subject_id: v, batch_id: '', section_id: ''})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Subject" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {uniqueSubjects.map(sub => (
+                              <SelectItem key={sub.subject_id} value={String(sub.subject_id)}>
+                                {sub.subject_name} ({sub.subject_code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label>Batch</Label>
+                        <Select 
+                          value={newAssignment.batch_id} 
+                          onValueChange={v => setNewAssignment({...newAssignment, batch_id: v, section_id: ''})}
+                          disabled={!newAssignment.subject_id}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Batch" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {batchesForSubject.map(batch => (
+                              <SelectItem key={batch.batch_id} value={String(batch.batch_id)}>
+                                {batch.batch_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label>Section (Optional)</Label>
+                        <Select 
+                          value={newAssignment.section_id || 'all'} 
+                          onValueChange={v => setNewAssignment({...newAssignment, section_id: v === 'all' ? '' : v})}
+                          disabled={!newAssignment.subject_id}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Sections" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Sections</SelectItem>
+                            {sectionsForSubjectBatch.map(sec => (
+                              <SelectItem key={sec.section_id} value={String(sec.section_id)}>
+                                {sec.section_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
                     </div>
                     <div>
@@ -191,38 +477,52 @@ export default function Assignments() {
                         />
                     </div>
                     <div>
-                        <Label>Batch</Label>
-                        <Select onValueChange={v => setNewAssignment({...newAssignment, classId: v})}>
-                            <SelectTrigger><SelectValue placeholder="Select Batch" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="CSE">CSE</SelectItem>
-                                <SelectItem value="ECE">ECE</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label>Section</Label>
-                        <Select onValueChange={v => setNewAssignment({...newAssignment, sectionId: v})}>
-                            <SelectTrigger><SelectValue placeholder="Select Section" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="A">Section A</SelectItem>
-                                <SelectItem value="B">Section B</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label>Max Marks</Label>
+                        <Label>Max Score</Label>
                         <Input 
                             type="number" 
-                            value={newAssignment.maxMarks} 
-                            onChange={e => setNewAssignment({...newAssignment, maxMarks: Number(e.target.value)})} 
+                            value={newAssignment.maxScore} 
+                            onChange={e => setNewAssignment({...newAssignment, maxScore: Number(e.target.value)})} 
                         />
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                        <Label>Upload File (Optional)</Label>
+                        {selectedFile ? (
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                                <FileText className="w-8 h-8 text-primary" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold truncate">{selectedFile.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                </div>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-destructive"
+                                    onClick={() => setSelectedFile(null)}
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <Input 
+                                type="file" 
+                                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        setSelectedFile(file);
+                                        toast.success(`File selected: ${file.name}`);
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
                     <div className="md:col-span-2">
                         <Label>Description</Label>
                         <Textarea 
                             rows={4}
-                            value={newAssignment.description} 
+                            value={newAssignment.description || ''} 
                             onChange={e => setNewAssignment({...newAssignment, description: e.target.value})} 
                             placeholder="Detailed instructions..."
                         />
@@ -240,7 +540,7 @@ export default function Assignments() {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                    <Button onClick={handleCreate}>Create Assignment</Button>
+                    <Button onClick={handleCreate}>{isEditMode ? 'Update Assignment' : 'Create Assignment'}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -297,81 +597,140 @@ export default function Assignments() {
             <Button variant="outline" className="rounded-2xl border-white/10">Active Only</Button>
          </div>
 
-         <div className="grid grid-cols-1 gap-4">
-            {assignments.filter(a => {
-                 const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase());
-                 
-                 // View Mode Logic (Mock: 6 months threshold or just past/future)
-                 // Let's use a simpler logic for demo: History = Due Date > 6 months ago? 
-                 // Or better match Admin: Active vs Archive. 
-                 // Since we don't have "Archive" status, let's use Date.
-                 const dueDate = new Date(a.dueDate);
-                 const today = new Date();
-                 const sixMonthsAgo = new Date();
-                 sixMonthsAgo.setMonth(today.getMonth() - 6);
-                 
-                 const isHistory = dueDate < sixMonthsAgo;
-                 const matchesView = viewMode === 'current' ? !isHistory : isHistory;
-
-                 return matchesSearch && matchesView;
-            }).map((assignment, idx) => {
-               const assignmentSubmissions = submissions.filter(s => s.assignmentId === assignment.id);
-               // Assuming logic to get total students class size, for now hardcoded or fetched
-               const totalStudents = 60; // Should fetch class size from student data
-               const subCount = assignmentSubmissions.length;
+         <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+             {paginatedAssignments.map((assignment, idx) => {
+               const submissionRate = assignment.student_count > 0 
+                 ? Math.round((assignment.submission_count / assignment.student_count) * 100) 
+                 : 0;
 
                return (
                 <motion.div
-                   key={assignment.id}
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: idx * 0.1 }}
-                >
-                   <Card className="glass-card border-none p-6 group hover:shadow-2xl transition-all">
-                      <div className="flex flex-col lg:flex-row items-center gap-8">
-                         <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                            <FileEdit className="w-8 h-8" />
-                         </div>
-                         
-                         <div className="flex-1 space-y-2 text-center lg:text-left">
-                            <div className="flex flex-wrap justify-center lg:justify-start gap-2 mb-1">
-                               <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest border-white/10">{assignment.subject}</Badge>
-                               <Badge className={'bg-primary/10 text-primary border-none'}>
-                                  {assignment.maxMarks} MARKS
-                               </Badge>
-                            </div>
-                            <h4 className="text-lg font-black group-hover:text-primary transition-colors">{assignment.title}</h4>
-                            <div className="flex items-center justify-center lg:justify-start gap-6 text-xs font-bold text-muted-foreground">
-                               <span className="flex items-center gap-1.5 uppercase tracking-tighter"><Users className="w-3.5 h-3.5" /> {assignment.classId} - {assignment.sectionId}</span>
-                               <span className="flex items-center gap-1.5 uppercase tracking-tighter"><Clock className="w-3.5 h-3.5 text-orange-500" /> Due: {assignment.dueDate}</span>
-                            </div>
-                         </div>
+                  key={assignment.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+               >
+                  <Card className="glass-card border-none p-6 group hover:shadow-2xl transition-all">
+                     <div className="flex flex-col lg:flex-row items-center gap-8">
+                        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                           <FileEdit className="w-8 h-8" />
+                        </div>
+                        
+                        <div className="flex-1 space-y-2 text-center lg:text-left">
+                           <div className="flex flex-wrap justify-center lg:justify-start gap-2 mb-1">
+                              <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest border-white/10">{assignment.subject_name}</Badge>
+                              <Badge className={'bg-primary/10 text-primary border-none'}>
+                                 {assignment.max_score} MARKS
+                              </Badge>
+                           </div>
+                           <h4 className="text-lg font-black group-hover:text-primary transition-colors">{assignment.title}</h4>
+                           <div className="flex items-center justify-center lg:justify-start gap-6 text-xs font-bold text-muted-foreground">
+                              <span className="flex items-center gap-1.5 uppercase tracking-tighter"><Users className="w-3.5 h-3.5" /> {assignment.batch_name} - {assignment.section_name}</span>
+                              <span className="flex items-center gap-1.5 uppercase tracking-tighter"><Clock className="w-3.5 h-3.5 text-orange-500" /> Due: {new Date(assignment.due_date).toLocaleDateString()}</span>
+                           </div>
+                        </div>
  
                          <div className="w-full lg:w-48 space-y-2">
                             <div className="flex items-center justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                                <span>Submission Rate</span>
-                               <span className="text-primary">{Math.round((subCount/totalStudents)*100)}%</span>
+                               <span>{submissionRate}%</span>
                             </div>
-                            <Progress value={evaluationRate} className="h-2" />
-                            <p className="text-right text-[10px] font-bold text-muted-foreground">{subCount} / {totalStudents} Students</p>
+                            <Progress value={submissionRate} className="h-2 bg-muted/50" />
+                            <p className="text-[10px] font-bold text-right text-muted-foreground">{assignment.submission_count} / {assignment.student_count} Students</p>
                          </div>
- 
-                         <div className="flex gap-2">
-                            <Button className="rounded-xl px-6 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-glow shadow-primary/10">Evaluate</Button>
-                            <Button variant="ghost" size="icon" className="rounded-xl"><MoreVertical className="w-5 h-5" /></Button>
+
+                         <div className="flex items-center gap-2">
+                             <Button 
+                                className="rounded-xl shadow-lg shadow-primary/20"
+                                onClick={() => handleEvaluate(assignment)}
+                             >
+                                Evaluate
+                             </Button>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleEdit(assignment)}>
+                                        <FileEdit className="w-4 h-4 mr-2" />
+                                        Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(assignment.id)}>
+                                        <X className="w-4 h-4 mr-2" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
                          </div>
-                      </div>
-                   </Card>
-                </motion.div>
-             );
-            })}
-            
-            {assignments.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground">
-                    No assignments created yet. Click "Create Assignment" to start.
-                </div>
-            )}
+                     </div>
+                  </Card>
+               </motion.div>
+              );
+           })}
          </div>
+         
+         <Pagination 
+           currentPage={currentPage}
+           totalPages={totalPages}
+           onPageChange={setCurrentPage}
+           totalItems={filteredAssignmentsData.length}
+         />
+       </div>
+
+
+        {/* Evaluation/Submissions Dialog */}
+        <Dialog open={isSubmissionsOpen} onOpenChange={setIsSubmissionsOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Submissions for {selectedAssignment?.title}</DialogTitle>
+                    <DialogDescription>
+                        Review and grade student submissions.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    {submissions.length === 0 ? (
+                        <div className="text-center py-10 text-muted-foreground">
+                            No submissions yet for this assignment.
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {submissions.map((sub: any) => (
+                                <Card key={sub.id} className="p-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="font-bold">{sub.student_name}</p>
+                                        <p className="text-xs text-muted-foreground">{sub.roll_number}</p>
+                                        <p className="text-xs text-muted-foreground">Submitted: {new Date(sub.submitted_at).toLocaleString()}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Badge variant={sub.status === 'Graded' ? 'default' : 'secondary'}>
+                                            {sub.status}
+                                        </Badge>
+                                        {sub.file_url && (
+                                            <Button variant="outline" size="sm" asChild>
+                                                <a href={`http://localhost:3007${sub.file_url}`} target="_blank" rel="noopener noreferrer">
+                                                    View File
+                                                </a>
+                                            </Button>
+                                        )}
+                                        {/* Placeholder for Grading - can be expanded */}
+                                        <Button size="sm">Grade</Button>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+
+        {assignments.length === 0 && !loading && (
+            <div className="text-center py-10 text-muted-foreground">
+                No assignments created yet. Click "Create Assignment" to start.
+            </div>
+        )}
       </div>
 
       <motion.div
@@ -385,7 +744,7 @@ export default function Assignments() {
         </div>
         <div className="flex-1 text-center md:text-left">
            <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Submission Trends</h3>
-           <p className="text-sm text-muted-foreground font-medium">Overall assignment submission rate has improved by <span className="text-emerald-500 font-black">12.5%</span> this week. Peer-to-peer collaboration seems to be high in {assignments[0]?.classId || 'your classes'}.</p>
+           <p className="text-sm text-muted-foreground font-medium">Overall assignment submission rate has improved by <span className="text-emerald-500 font-black">12.5%</span> this week. Peer-to-peer collaboration seems to be high in {assignments[0]?.batch_name || 'your classes'}.</p>
         </div>
         <Button variant="outline" className="rounded-xl h-12 px-8 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all">Detailed Insights <ArrowRight className="ml-2 w-4 h-4" /></Button>
       </motion.div>

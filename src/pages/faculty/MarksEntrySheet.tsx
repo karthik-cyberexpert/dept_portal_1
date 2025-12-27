@@ -207,15 +207,15 @@ export default function MarksEntrySheet() {
       if (exam === 'model') {
           // 10 Qs for Part A, 5 Qs for Part B. Total 15 columns + Absent
           const headers = [];
-          for(let i=1; i<=10; i++) headers.push(`Q${i} (2m)`);
-          for(let i=1; i<=5; i++) headers.push(`Q${i+10} (16m)`);
+          for(let i=1; i<=10; i++) headers.push(`Q${i}(2M)`);
+          for(let i=1; i<=5; i++) headers.push(`Q${i+10}(16M)`);
           return headers;
       }
       // IA 1/2/3
       // 5 Qs for Part A, 5 Qs for Part B. Total 10 columns
       const headers = [];
-      for(let i=1; i<=5; i++) headers.push(`Q${i} (2m)`);
-      for(let i=1; i<=5; i++) headers.push(`Q${i+5} (8m)`);
+      for(let i=1; i<=5; i++) headers.push(`Q${i}(2M)`);
+      for(let i=1; i<=5; i++) headers.push(`Q${i+5}(8M)`);
       return headers;
   };
 
@@ -249,19 +249,19 @@ export default function MarksEntrySheet() {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="bg-muted/30 border-b border-white/10">
-                            <th className="p-4 text-left font-black uppercase tracking-widest text-muted-foreground w-16 sticky left-0 bg-muted/30 z-20">S.No</th>
-                            <th className="p-4 text-left font-black uppercase tracking-widest text-muted-foreground min-w-[200px] sticky left-16 bg-muted/30 z-20">Student Name</th>
-                            <th className="p-4 text-left font-black uppercase tracking-widest text-muted-foreground min-w-[120px]">Reg. No</th>
+                            <th className="p-2 text-left font-black uppercase tracking-widest text-muted-foreground text-[10px] sticky left-0 bg-muted/30 z-30" style={{width: '45px', minWidth: '45px'}}>S.No</th>
+                            <th className="p-2 text-left font-black uppercase tracking-widest text-muted-foreground text-[10px] sticky bg-muted/30 z-30" style={{left: '45px', width: '140px', minWidth: '140px'}}>Name</th>
+                            <th className="p-2 text-left font-black uppercase tracking-widest text-muted-foreground text-[10px] sticky bg-muted/30 z-30" style={{left: '185px', width: '150px', minWidth: '150px'}}>Reg. No</th>
                             
-                            {/* Dynamic Question Headers */}
+                            {/* Dynamic Question Headers - these scroll */}
                             {getQuestionHeaders().map((h, i) => (
-                                <th key={i} className="p-4 text-center font-black uppercase tracking-tight text-xs min-w-[80px] text-muted-foreground/80">
+                                <th key={i} className="p-2 text-center font-bold uppercase tracking-tight text-[10px] whitespace-nowrap text-muted-foreground/80" style={{minWidth: '55px'}}>
                                     {h}
                                 </th>
                             ))}
 
-                            <th className="p-4 text-center font-black uppercase tracking-widest text-muted-foreground w-20">Absent</th>
-                            <th className="p-4 text-center font-black uppercase tracking-widest text-primary w-24 sticky right-0 bg-muted/30 z-20">Total</th>
+                            <th className="p-2 text-center font-bold uppercase tracking-widest text-muted-foreground text-[10px] whitespace-nowrap sticky bg-muted/30 z-30" style={{right: '60px', width: '55px', minWidth: '55px'}}>Absent</th>
+                            <th className="p-2 text-center font-bold uppercase tracking-widest text-primary text-[10px] whitespace-nowrap sticky right-0 bg-muted/30 z-30" style={{width: '60px', minWidth: '60px'}}>Total</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -273,9 +273,11 @@ export default function MarksEntrySheet() {
                                 transition={{ delay: idx * 0.02 }}
                                 className={`group hover:bg-white/5 transition-colors ${student.absent ? 'opacity-60 bg-red-500/5' : ''}`}
                             >
-                                <td className="p-4 font-mono text-muted-foreground sticky left-0 bg-background group-hover:bg-white/5 z-10">{idx + 1}</td>
-                                <td className="p-4 font-bold sticky left-16 bg-background group-hover:bg-white/5 z-10">{student.name}</td>
-                                <td className="p-4 font-mono text-muted-foreground">{student.rollNumber}</td>
+                                <td className="p-2 font-mono text-muted-foreground text-xs sticky left-0 bg-background z-20" style={{width: '45px', minWidth: '45px'}}>{idx + 1}</td>
+                                <td className="p-2 sticky bg-background z-20" style={{left: '45px', width: '140px', minWidth: '140px'}}>
+                                    <span className="font-bold text-xs leading-tight" style={{maxWidth: '130px', wordBreak: 'break-word', display: 'block'}}>{student.name}</span>
+                                </td>
+                                <td className="p-2 font-mono text-muted-foreground text-xs sticky bg-background z-20" style={{left: '185px', width: '150px', minWidth: '150px', wordBreak: 'break-word'}}>{student.rollNumber}</td>
 
                                 {exam === 'assignment' ? (
                                     <td className="p-4 text-center">
@@ -312,7 +314,8 @@ export default function MarksEntrySheet() {
                                     </>
                                 )}
 
-                                <td className="p-4 text-center">
+                                {/* Absent column - sticky on right */}
+                                <td className="p-2 text-center sticky bg-background z-20" style={{right: '60px', width: '55px', minWidth: '55px'}}>
                                     <Checkbox 
                                         checked={student.absent}
                                         onCheckedChange={(c: boolean) => handleAbsentToggle(student.id, c)}
@@ -320,7 +323,7 @@ export default function MarksEntrySheet() {
                                     />
                                 </td>
                                 
-                                <td className="p-4 text-center font-black text-primary bg-primary/5 sticky right-0 z-10">
+                                <td className="p-2 text-center font-black text-primary bg-primary/10 text-sm sticky right-0 z-20" style={{width: '60px', minWidth: '60px'}}>
                                     {student.absent ? 'AB' : (student.currentMarks || 0)}
                                 </td>
                             </motion.tr>

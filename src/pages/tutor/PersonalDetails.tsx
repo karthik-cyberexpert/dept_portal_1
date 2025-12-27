@@ -54,8 +54,8 @@ export default function PersonalDetails() {
 
                 setFaculty({
                     ...data,
-                    designation: 'Assistant Professor', 
-                    employeeId: `FAC-${data.id}`,
+                    designation: data.designation || 'Assistant Professor', 
+                    employeeId: data.employeeId || `FAC-${data.id}`,
                 });
             }
          } catch (e) {

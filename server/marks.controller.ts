@@ -48,47 +48,56 @@ export const getMarks = async (req: Request, res: Response) => {
 
     const connection = await pool.getConnection();
     try {
+        console.log('[getMarks] Request params:', { sectionId, subjectCode, examType });
+        
         // 1. Get Subject ID from Code (assuming unique code)
         const [subjects]: any = await connection.query('SELECT id FROM subjects WHERE code = ?', [subjectCode]);
+        console.log('[getMarks] Subjects query result:', subjects);
+        
         if (subjects.length === 0) {
+            console.log('[getMarks] Subject not found for code:', subjectCode);
             return res.status(404).json({ message: 'Subject not found' });
         }
         const subjectId = subjects[0].id;
+        console.log('[getMarks] Subject ID:', subjectId);
 
-        // 2. Get Exam ID (Create implicit exam entry if not exists for this batch/sem/type? Or assume it exists?)
-        // For simplicity in this iteration, let's look up the exam or use a placeholder logic.
-        // Actually, the frontend sends 'examType' like 'ia1'. We might need to map this to an `exams` table entry.
-        // Or store `exam_type` string directly in marks? The schema has `exam_id` FK.
-        // Let's Find or Create an Exam entry for this batch/semester/type.
-        // We need Batch ID. Section implies Batch.
+        // 2. Get Batch ID from Section
         const [sections]: any = await connection.query('SELECT batch_id FROM sections WHERE id = ?', [sectionId]);
-        if (sections.length === 0) return res.status(404).json({ message: 'Section not found' });
-        const batchId = sections[0].batch_id;
-
-        // Check if Exam exists
-        const [exams]: any = await connection.query(
-            'SELECT id FROM exams WHERE batch_id = ? AND exam_type = ? LIMIT 1', 
-            [batchId, examType] // e.g. 'Internal'
-        );
+        console.log('[getMarks] Sections query result:', sections);
         
-        // If we strictly follow the schema, examType is Enum('Internal', 'Model'...). 
-        // Frontend sends 'ia1', 'ia2'. These are names, not types.
-        // Let's assume for now we resolve this. 
-        // FAST PATH: Let's assume strict mapping for now.
-        // If not found, create one?
+        if (sections.length === 0) {
+            console.log('[getMarks] Section not found for ID:', sectionId);
+            return res.status(404).json({ message: 'Section not found' });
+        }
+        const batchId = sections[0].batch_id;
+        console.log('[getMarks] Batch ID:', batchId);
+
+        // 3. Find or Create Exam
+        // Frontend sends examType as name (e.g., 'ia1', 'ia2')
+        // Database has exam_type ENUM ('Internal', 'Model', 'Semester', 'Assignment')
+        // We should search by name field, not exam_type
+        const [exams]: any = await connection.query(
+            'SELECT id FROM exams WHERE batch_id = ? AND name = ? LIMIT 1', 
+            [batchId, String(examType).toUpperCase()]
+        );
+        console.log('[getMarks] Exams query for name:', { batchId, examName: String(examType).toUpperCase(), result: exams });
+        
         let examId;
         if (exams.length > 0) {
             examId = exams[0].id;
+            console.log('[getMarks] Found existing exam ID:', examId);
         } else {
-            // Create default exam
+            console.log('[getMarks] Creating new exam with name:', String(examType).toUpperCase());
             const [ins]: any = await connection.query(
                 "INSERT INTO exams (batch_id, semester, name, exam_type) VALUES (?, 1, ?, 'Internal')",
                 [batchId, String(examType).toUpperCase()]
             );
             examId = ins.insertId;
+            console.log('[getMarks] Created new exam ID:', examId);
         }
 
-        // 3. Fetch Students and Left Join Marks
+        // 4. Fetch Students and Left Join Marks
+        console.log('[getMarks] Fetching students with marks for:', { examId, subjectId, sectionId });
         const [rows]: any = await connection.query(`
             SELECT 
                 u.id, u.name, u.email, sp.roll_number as rollNumber,
@@ -102,11 +111,13 @@ export const getMarks = async (req: Request, res: Response) => {
             ORDER BY sp.roll_number ASC
         `, [examId, subjectId, sectionId]);
 
+        console.log('[getMarks] Students fetched:', rows.length);
         res.json(rows);
 
     } catch (e: any) {
-        console.error("Get Marks Error:", e);
-        res.status(500).json({ message: 'Error fetching marks' });
+        console.error("[getMarks] Error:", e);
+        console.error("[getMarks] Error stack:", e.stack);
+        res.status(500).json({ message: 'Error fetching marks', error: e.message });
     } finally {
         connection.release();
     }
