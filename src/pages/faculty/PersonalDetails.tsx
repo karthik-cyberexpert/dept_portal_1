@@ -25,9 +25,31 @@ export default function PersonalDetails() {
 
   React.useEffect(() => {
     if (user && user.role === 'faculty') {
-      const allFaculty = getFaculty();
-      const current = allFaculty.find(f => f.id === user.id || f.email === user.email);
-      if (current) setFaculty(current);
+        const fetchProfile = async () => {
+             try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:3007/api/faculty/profile', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // Transform for UI if needed or ensure backend matches
+                    // Backend returns: qualification, specialization, experience, etc.
+                    // Frontend expects: designation, employeeId (mapped from id/code?), etc.
+                    
+                    setFaculty({
+                        ...data,
+                        designation: 'Assistant Professor', // Default or from DB if added
+                        employeeId: `FAC-${data.id}`,
+                        // Map allocations to UI expected format if needed, currently UI doesn't list them in detail but good to have
+                    });
+                }
+             } catch (e) {
+                 console.error("Error fetching profile", e);
+             }
+        };
+        fetchProfile();
     }
   }, [user]);
 

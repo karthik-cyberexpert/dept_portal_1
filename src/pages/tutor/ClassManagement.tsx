@@ -42,26 +42,50 @@ export default function ClassManagement() {
 
   useEffect(() => {
     if (!user) return;
-    const allTutors = getTutors();
-    const currentTutor = allTutors.find(t => t.id === user.id || t.email === user.email);
-    if (!currentTutor) return;
-    setTutor(currentTutor);
+    
+    const fetchClassData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:3007/api/tutors/class', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
 
-    const allStudents = getStudents();
-    const myStudents = allStudents.filter(s => s.batch === currentTutor.batch && s.section === currentTutor.section);
-    setStudents(myStudents);
-    setFilteredStudents(myStudents);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.hasAssignment) {
+                    setTutor({
+                        id: user.id || '',
+                        name: user.name || '',
+                        batch: data.batch,
+                        section: data.section || 'A', // Fallback
+                        // mock other fields if needed or allow Partial
+                    } as any);
 
-    // Calc stats
-    if (myStudents.length > 0) {
-        const totalAttendance = myStudents.reduce((sum, s) => sum + s.attendance, 0);
-        const totalCGPA = myStudents.reduce((sum, s) => sum + s.cgpa, 0);
-        setStats({
-            avgAttendance: Math.round(totalAttendance / myStudents.length),
-            avgCGPA: Number((totalCGPA / myStudents.length).toFixed(2)),
-            certifications: myStudents.length * 2 // Mocking this part as certifications aren't in student record yet
-        });
-    }
+                    setStudents(data.students || []);
+                    setFilteredStudents(data.students || []);
+
+                    // Calc stats
+                    const myStudents = data.students || [];
+                    if (myStudents.length > 0) {
+                        const totalAttendance = myStudents.reduce((sum: number, s: any) => sum + (s.attendance || 0), 0);
+                        const totalCGPA = myStudents.reduce((sum: number, s: any) => sum + (s.cgpa || 0), 0);
+                        setStats({
+                            avgAttendance: Math.round(totalAttendance / myStudents.length),
+                            avgCGPA: Number((totalCGPA / myStudents.length).toFixed(2)),
+                            certifications: Math.floor(myStudents.length * 1.5) 
+                        });
+                    }
+                } else {
+                    console.log("No class assigned to this tutor");
+                    // Could show empty state UI
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching tutor class", e);
+        }
+    };
+
+    fetchClassData();
   }, [user]);
 
   useEffect(() => {

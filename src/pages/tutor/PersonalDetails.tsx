@@ -28,16 +28,41 @@ export default function PersonalDetails() {
 
   useEffect(() => {
     if (!user) return;
-    const allTutors = getTutors();
-    const currentTutor = allTutors.find(t => t.id === user.id || t.email === user.email);
-    if (currentTutor) {
-        setTutor(currentTutor);
-        const allFaculty = getFaculty();
-        const linkedFaculty = allFaculty.find(f => f.id === currentTutor.facultyId);
-        if (linkedFaculty) {
-            setFaculty(linkedFaculty);
-        }
-    }
+    
+    // Tutors are Faculty, so we use the same Profile API
+    const fetchProfile = async () => {
+         try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:3007/api/faculty/profile', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                
+                setTutor({
+                    id: user.id || '',
+                    name: data.name,
+                    email: data.email,
+                    phone: data.phone,
+                    avatar: data.avatar,
+                    designation: 'Class In-charge', // Specific to Tutor View
+                    status: data.status,
+                    batch: 'View Class', // Or fetch from /tutor/class
+                    section: 'View Class',
+                    facultyId: data.id
+                } as any);
+
+                setFaculty({
+                    ...data,
+                    designation: 'Assistant Professor', 
+                    employeeId: `FAC-${data.id}`,
+                });
+            }
+         } catch (e) {
+             console.error("Error fetching profile", e);
+         }
+    };
+    fetchProfile();
   }, [user]);
 
   if (!tutor) {

@@ -48,19 +48,34 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { 
   Student, 
-  getStudents, 
-  addStudent, 
-  updateStudent, 
-  deleteStudent 
+  // Removing local store functions
 } from '@/lib/data-store';
+// ... existing imports ...
 import { StatCard } from '@/components/dashboard/StatCards';
-import { getData, BATCHES_KEY } from '@/lib/data-store';
+
+// Define API Interfaces locally or map to existing Student
+interface ApiStudent {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    roll_number: string;
+    register_number: string;
+    batch_name: string;
+    section_name: string;
+    batch_id?: number;
+    section_id?: number;
+    avatar_url?: string;
+}
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ManageStudents() {
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [batches, setBatches] = useState<any[]>([]); // New State for Batches
+  const [sections, setSections] = useState<any[]>([]); // New State for Sections
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [batchFilter, setBatchFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
@@ -71,7 +86,8 @@ export default function ManageStudents() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [formData, setFormData] = useState<Partial<Student>>({});
+  const [formData, setFormData] = useState<any>({}); // Relaxed type for form data
+
   
   // Bulk Upload State
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
@@ -79,8 +95,76 @@ export default function ManageStudents() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setStudents(getStudents());
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+      try {
+          const token = localStorage.getItem('token');
+          const headers = { Authorization: `Bearer ${token}` };
+
+          // 1. Fetch Students
+          const resStudents = await fetch('http://localhost:3007/api/students', { headers });
+          if (resStudents.ok) {
+              const data = await resStudents.json();
+              // Map API data to Frontend Interface
+              const mappedStudents: Student[] = data.map((s: any) => ({
+                  id: s.id.toString(),
+                  name: s.name,
+                  rollNumber: s.roll_number,
+                  regNumber: s.register_number,
+                  email: s.email,
+                  phone: s.phone,
+                  batch: s.batch_name || 'N/A',
+                  batchId: s.batch_id, // Map batch ID
+                  section: s.section_name || 'N/A',
+                  sectionId: s.section_id, // Map section ID
+                  status: 'Active', 
+                  attendance: 0,
+                  cgpa: 0,
+                  avatar: s.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`
+              }));
+              setStudents(mappedStudents);
+          }
+
+          // 2. Fetch Batches for Filter/Dropdown
+          const resBatches = await fetch('http://localhost:3007/api/academic/batches', { headers });
+          if (resBatches.ok) {
+              const data = await resBatches.json();
+              setBatches(data);
+          }
+
+      } catch (error) {
+          console.error("Failed to fetch data", error);
+          toast.error("Failed to load data");
+      }
+  };
+
+  // Fetch sections when batch filter changes
+  useEffect(() => {
+    const fetchSections = async () => {
+      if (batchFilter !== 'all') {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`http://localhost:3007/api/academic/batches/${batchFilter}/sections`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setSections(data);
+          } else {
+             setSections([]); // Reset if fetch fails
+          }
+        } catch (error) {
+          console.error("Failed to fetch sections", error);
+          setSections([]);
+        }
+      } else {
+        setSections([]); // Clear sections if no batch selected
+      }
+    };
+    fetchSections();
+  }, [batchFilter]);
 
   useEffect(() => {
     let filtered = students;
@@ -95,11 +179,13 @@ export default function ManageStudents() {
     }
 
     if (batchFilter !== 'all') {
-      filtered = filtered.filter(s => s.batch === batchFilter);
+      // Filter by Batch ID (ensure type match)
+      filtered = filtered.filter(s => s.batchId === Number(batchFilter));
     }
 
     if (sectionFilter !== 'all') {
-      filtered = filtered.filter(s => s.section === sectionFilter);
+      // Filter by Section ID
+       filtered = filtered.filter(s => s.sectionId === Number(sectionFilter));
     }
 
     if (statusFilter !== 'all') {
@@ -116,8 +202,7 @@ export default function ManageStudents() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const batches = [...new Set(students.map(s => s.batch))];
-  const sections = [...new Set(students.map(s => s.section))];
+
 
   const stats = {
     total: students.length,
@@ -126,16 +211,18 @@ export default function ManageStudents() {
     onLeave: students.filter(s => s.status === 'On Leave').length,
   };
 
+  const [formSections, setFormSections] = useState<any[]>([]); // Sections for the Add/Edit Modal
+
   const handleAdd = () => {
+    // Default to first batch ID if available
+    const defaultBatchId = batches.length > 0 ? batches[0].id : ''; 
     setFormData({
       name: '',
       email: '',
       phone: '',
       rollNumber: '',
-      batch: batches.length > 0 ? batches[0] : '2024-2028',
-      year: 1,
-      semester: 1,
-      section: 'A',
+      batch: defaultBatchId, 
+      section: '', // Will be set after fetching sections or user selection
       enrollmentType: 'Regular',
       admissionType: 'Government',
       status: 'Active',
@@ -143,15 +230,54 @@ export default function ManageStudents() {
       address: '',
       guardianName: '',
       guardianPhone: '',
-      attendance: 100,
-      cgpa: 0,
     });
+    // Trigger section fetch for default batch if exists
+    if (defaultBatchId) {
+        handleFormBatchChange(defaultBatchId, true); // true = isInit
+    }
     setIsAddModalOpen(true);
+  };
+
+  const handleFormBatchChange = async (batchId: string, isInit = false) => {
+      // Update form data (skip if init as it's already set)
+      if (!isInit) {
+          setFormData(prev => ({ ...prev, batch: batchId, section: '' }));
+      }
+      
+      try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`http://localhost:3007/api/academic/batches/${batchId}/sections`, {
+              headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+              const data = await res.json();
+              setFormSections(data);
+              // Default to first section if available
+              if (data.length > 0) {
+                   setFormData(prev => ({ ...prev, section: data[0].id }));
+              }
+          } else {
+              setFormSections([]);
+          }
+      } catch (error) {
+          console.error("Failed to fetch form sections", error);
+          setFormSections([]);
+      }
   };
 
   const handleEdit = (student: Student) => {
     setSelectedStudent(student);
-    setFormData(student);
+    // Student object uses names for display, need to use IDs for form if available
+    // OR map back. Since we added batchId/sectionId to student object earlier:
+    setFormData({
+        ...student,
+        batch: student.batchId,
+        section: student.sectionId
+    });
+    // Fetch sections for this batch so the dropdown works
+    if (student.batchId) {
+        handleFormBatchChange(student.batchId.toString(), true);
+    }
     setIsEditModalOpen(true);
   };
 
@@ -165,40 +291,103 @@ export default function ManageStudents() {
     setIsDeleteModalOpen(true);
   };
 
-  const submitAdd = () => {
-    if (!formData.name || !formData.rollNumber || !formData.email) {
-      toast.error('Please fill in all required fields');
+  const submitAdd = async () => {
+    if (!formData.name || !formData.email || !formData.rollNumber) {
+      toast.error('Please fill in required fields');
       return;
     }
-    
-    const newStudent = addStudent({
-      ...formData as Omit<Student, 'id' | 'createdAt'>,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}`,
-    });
-    
-    setStudents(prev => [...prev, newStudent]);
-    setIsAddModalOpen(false);
-    toast.success('Student added successfully!');
-  };
 
-  const submitEdit = () => {
-    if (!selectedStudent) return;
-    
-    const updated = updateStudent(selectedStudent.id, formData);
-    if (updated) {
-      setStudents(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setIsEditModalOpen(false);
-      toast.success('Student updated successfully!');
+    try {
+      const token = localStorage.getItem('token');
+      
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        roll_number: formData.rollNumber,
+        register_number: formData.regNumber || '',
+        batch_id: formData.batch, 
+        section_id: formData.section,
+        dob: formData.dateOfBirth || '2000-01-01',
+        gender: formData.gender || 'Other'
+      };
+
+      const response = await fetch('http://localhost:3007/api/students', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        toast.success('Student added successfully!');
+        setIsAddModalOpen(false);
+        fetchData(); // Reload list
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to add student');
+      }
+    } catch (error) {
+      console.error('Add Student Error:', error);
+      toast.error('Network error');
     }
   };
 
-  const confirmDelete = () => {
+  const submitEdit = async () => {
     if (!selectedStudent) return;
     
-    if (deleteStudent(selectedStudent.id)) {
-      setStudents(prev => prev.filter(s => s.id !== selectedStudent.id));
-      setIsDeleteModalOpen(false);
-      toast.success('Student deleted successfully!');
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        name: formData.name,
+        phone: formData.phone,
+        roll_number: formData.rollNumber,
+        batch_id: formData.batch, // IDs are now stored
+        section_id: formData.section
+      };
+
+      const response = await fetch(`http://localhost:3007/api/students/${selectedStudent.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+           'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        toast.success('Student updated successfully!');
+        setIsEditModalOpen(false);
+        fetchData();
+      } else {
+        toast.error('Failed to update student');
+      }
+    } catch (error) {
+       console.error('Update Error:', error);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3007/api/students/${selectedStudent.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        toast.success('Student deleted successfully!');
+        setIsDeleteModalOpen(false);
+        fetchData();
+      } else {
+        toast.error('Failed to delete student');
+      }
+    } catch (error) {
+       console.error('Delete Error:', error);
     }
   };
 
@@ -388,8 +577,8 @@ export default function ManageStudents() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Batches</SelectItem>
-              {batches.map(batch => (
-                <SelectItem key={batch} value={batch}>{batch}</SelectItem>
+              {batches.map((batch: any) => (
+                <SelectItem key={batch.id} value={batch.id.toString()}>{batch.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -399,8 +588,8 @@ export default function ManageStudents() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sections</SelectItem>
-              {sections.map(section => (
-                <SelectItem key={section} value={section}>Section {section}</SelectItem>
+              {sections.map((section: any) => (
+                <SelectItem key={section.id} value={section.id.toString()}>Section {section.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -629,49 +818,33 @@ export default function ManageStudents() {
             <div className="space-y-2">
               <Label>Batch</Label>
               <Select 
-                value={formData.batch || '2024-2028'} 
-                onValueChange={(v) => setFormData({ ...formData, batch: v })}
+                value={formData.batch ? formData.batch.toString() : ''} 
+                onValueChange={(v) => handleFormBatchChange(v)}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select Batch" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getData<any>(BATCHES_KEY).map((b: any) => (
-                    <SelectItem key={b.name} value={b.name}>{b.name}</SelectItem>
+                  {batches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>
                   ))}
-                  {/* Fallback if store is empty */}
-                  {getData<any>(BATCHES_KEY).length === 0 && (
-                    <>
-                      {batches.map(batch => (
-                        <SelectItem key={batch} value={batch}>{batch}</SelectItem>
-                      ))}
-                      {batches.length === 0 && (
-                        <>
-                          <SelectItem value="2024-2028">2024-2028</SelectItem>
-                          <SelectItem value="2023-2027">2023-2027</SelectItem>
-                          <SelectItem value="2022-2026">2022-2026</SelectItem>
-                          <SelectItem value="2021-2025">2021-2025</SelectItem>
-                        </>
-                      )}
-                    </>
-                  )}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Section</Label>
               <Select 
-                value={formData.section || 'A'} 
+                value={formData.section ? formData.section.toString() : ''} 
                 onValueChange={(v) => setFormData({ ...formData, section: v })}
+                disabled={!formSections.length}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select Section" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="A">Section A</SelectItem>
-                  <SelectItem value="B">Section B</SelectItem>
-                  <SelectItem value="C">Section C</SelectItem>
-                  <SelectItem value="D">Section D</SelectItem>
+                  {formSections.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id.toString()}>Section {s.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

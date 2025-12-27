@@ -49,6 +49,8 @@ export interface Faculty {
   dateOfJoining: string;
   address: string;
   office: string;
+  department?: string;
+  employeeId: string;
   education: { degree: string; institution: string; year: string }[];
   createdAt: string;
 }

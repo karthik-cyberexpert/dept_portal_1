@@ -50,15 +50,59 @@ export default function Timetable() {
 
   useEffect(() => {
     if (!user) return;
-    const tutors = getTutors();
-    const currentTutor = tutors.find(t => t.id === user.id || t.email === user.email);
+
+    // Fetch Tutor's Class Timetable
+    // 1. Get Class Info
+    // 2. Fetch Timetable for that class
+    // For simplicity, we can reuse /api/tutors/class to get the class info, then maybe a new endpoint or filter?
+    // OR, we can just fetch the Faculty's OWN timetable if that's what is intended?
+    // User request: "for time table, subject allocation and everything"
+    // Usually "Tutor Dashboard" -> "Timetable" implies the Class Timetable (of the students they mentor) OR their own schedule.
+    // Given the previous code fetched `classSlots` (students' schedule), let's try to maintain that.
+    // We need an endpoint `GET /api/tutors/class/timetable` or similar.
+    // For now, let's fetch the Faculty's OWN timetable as a fallback or if usually Tutors want to see their teaching schedule.
+    // Wait, the previous code was `allSlots.filter(s => s.classId === currentTutor.batch ...)` -> This is CLASS Timetable.
+    // So we need to fetch the timetable for the Assigned Batch/Section.
     
-    if (currentTutor) {
-        setTutorInfo({ batch: currentTutor.batch, section: currentTutor.section });
-        const allSlots = getTimetable();
-        const classSlots = allSlots.filter(s => s.classId === currentTutor.batch && s.sectionId === currentTutor.section);
-        setTimetable(classSlots);
-    }
+    const fetchClassTimetable = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            
+            // 1. Get Class Info
+            const classRes = await fetch('http://localhost:3007/api/tutors/class', {
+                 headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (classRes.ok) {
+                const classData = await classRes.json();
+                if (classData.hasAssignment) {
+                     setTutorInfo({ batch: classData.batch, section: classData.section });
+                     
+                     // 2. Fetch Timetable for this Batch/Section
+                     // We can reuse the public/admin timetable API with filters or make a specific one.
+                     // Let's assume we can fetch all or specific. 
+                     // Actually, we haven't made a dedicated "Get Class Timetable" API yet.
+                     // Let's quickly add `getTutorTimetable` to `tutor.controller`.
+                     
+                     const ttRes = await fetch(`http://localhost:3007/api/tutors/timetable`, { // New Endpoint needed
+                         headers: { Authorization: `Bearer ${token}` }
+                     });
+                     
+                     if (ttRes.ok) {
+                         const slots = await ttRes.json();
+                         setTimetable(slots.map((s: any) => ({
+                             ...s,
+                             type: s.type || 'theory'
+                         })));
+                     }
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching class timetable", e);
+        }
+    };
+
+    fetchClassTimetable();
   }, [user]);
 
   const getSlot = (day: string, period: number | string) => {

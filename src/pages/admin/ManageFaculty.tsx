@@ -43,22 +43,37 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { 
-  Faculty, 
-  getFaculty, 
-  addFaculty, 
-  updateFaculty, 
-  deleteFaculty 
-} from '@/lib/data-store';
+import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '@/components/dashboard/StatCards';
 
 const ITEMS_PER_PAGE = 10;
 
+// Define interfaces locally since we removed data-store
+interface Faculty {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  employeeId: string; // Mapping from employee_id or custom
+  designation?: string;
+  qualification: string;
+  specialization: string;
+  department: string;
+  experience: number;
+  subjects: string[];
+  sections: string[];
+  status: 'Active' | 'On Leave' | 'Resigned';
+  avatar: string;
+  dateOfJoining: string;
+  address: string;
+}
+
 export default function ManageFaculty() {
+  const { user } = useAuth();
+  const token = localStorage.getItem('token');
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [filteredFaculty, setFilteredFaculty] = useState<Faculty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [designationFilter, setDesignationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -73,9 +88,44 @@ export default function ManageFaculty() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const fetchData = async () => {
+    try {
+        const res = await fetch('http://localhost:3007/api/admin/faculty', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            // Transform data if needed
+            // DB returns: id, name, email, phone, avatar_url, role, designation, qualification, specialization, experience, joining_date, address
+            const transformed = data.map((f: any) => ({
+                id: f.id,
+                name: f.name,
+                email: f.email,
+                phone: f.phone,
+                employeeId: f.employee_id || 'N/A',
+                qualification: f.qualification || '',
+                specialization: f.specialization || '',
+                department: f.department || '', // Mapped from d.name
+                experience: f.experience || 0,
+                subjects: [], // Fetching subjects handled separately or not yet supported in this view
+                sections: [],
+                status: 'Active', // Mock status for now as DB doesn't have it in users table? Or add it.
+                avatar: f.avatar_url || '',
+                dateOfJoining: f.joining_date || '',
+                address: f.address || ''
+            }));
+            setFaculty(transformed);
+        } else {
+             toast.error('Failed to fetch faculty');
+        }
+    } catch (error) {
+        toast.error('Network error');
+    }
+  };
+
   useEffect(() => {
-    setFaculty(getFaculty());
-  }, []);
+    fetchData();
+  }, [token]);
 
   useEffect(() => {
     let filtered = faculty;
@@ -90,17 +140,13 @@ export default function ManageFaculty() {
       );
     }
 
-    if (designationFilter !== 'all') {
-      filtered = filtered.filter(f => f.designation === designationFilter);
-    }
-
     if (statusFilter !== 'all') {
       filtered = filtered.filter(f => f.status === statusFilter);
     }
 
     setFilteredFaculty(filtered);
     setCurrentPage(1);
-  }, [faculty, searchTerm, designationFilter, statusFilter]);
+  }, [faculty, searchTerm, statusFilter]);
 
   const totalPages = Math.ceil(filteredFaculty.length / ITEMS_PER_PAGE);
   const paginatedFaculty = filteredFaculty.slice(
@@ -110,9 +156,9 @@ export default function ManageFaculty() {
 
   const stats = {
     total: faculty.length,
-    professors: faculty.filter(f => f.designation === 'Professor').length,
-    associates: faculty.filter(f => f.designation === 'Associate Professor').length,
-    assistants: faculty.filter(f => f.designation === 'Assistant Professor' || f.designation === 'Lecturer').length,
+    active: faculty.filter(f => f.status === 'Active').length,
+    onLeave: faculty.filter(f => f.status === 'On Leave').length,
+    resigned: faculty.filter(f => f.status === 'Resigned').length,
   };
 
   const handleAdd = () => {
@@ -121,9 +167,10 @@ export default function ManageFaculty() {
       email: '',
       phone: '',
       employeeId: '',
-      designation: 'Assistant Professor',
+      designation: '',
       qualification: '',
       specialization: '',
+      department: '',
       experience: 0,
       subjects: [],
       sections: [],
@@ -136,7 +183,10 @@ export default function ManageFaculty() {
 
   const handleEdit = (member: Faculty) => {
     setSelectedFaculty(member);
-    setFormData(member);
+    setFormData({
+      ...member,
+      dateOfJoining: member.dateOfJoining ? member.dateOfJoining.split('T')[0] : ''
+    });
     setIsEditModalOpen(true);
   };
 
@@ -150,64 +200,96 @@ export default function ManageFaculty() {
     setIsDeleteModalOpen(true);
   };
 
-  const submitAdd = () => {
-    if (!formData.name || !formData.employeeId || !formData.email) {
+  const submitAdd = async () => {
+    if (!formData.name || !formData.email) {
       toast.error('Please fill in all required fields');
       return;
     }
     
-    const newFaculty = addFaculty({
-      ...formData as Omit<Faculty, 'id' | 'createdAt'>,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}`,
-      subjects: formData.subjects || [],
-      sections: formData.sections || [],
-    });
-    
-    setFaculty(prev => [...prev, newFaculty]);
-    setIsAddModalOpen(false);
-    toast.success('Faculty member added successfully!');
-  };
+    try {
+        const res = await fetch('http://localhost:3007/api/admin/faculty', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                ...formData,
+                phone: formData.phone || '',
+                // other fields...
+            })
+        });
 
-  const submitEdit = () => {
-    if (!selectedFaculty) return;
-    
-    const updated = updateFaculty(selectedFaculty.id, formData);
-    if (updated) {
-      setFaculty(prev => prev.map(f => f.id === updated.id ? updated : f));
-      setIsEditModalOpen(false);
-      toast.success('Faculty updated successfully!');
+        if (res.ok) {
+            toast.success('Faculty member added successfully!');
+            setIsAddModalOpen(false);
+            fetchData();
+        } else {
+            const err = await res.json();
+            toast.error(err.message || 'Failed to add faculty');
+        }
+    } catch (error) {
+        toast.error('Network error');
     }
   };
 
-  const confirmDelete = () => {
+  const submitEdit = async () => {
     if (!selectedFaculty) return;
     
-    if (deleteFaculty(selectedFaculty.id)) {
-      setFaculty(prev => prev.filter(f => f.id !== selectedFaculty.id));
-      setIsDeleteModalOpen(false);
-      toast.success('Faculty member deleted successfully!');
+    try {
+        const res = await fetch(`http://localhost:3007/api/admin/faculty/${selectedFaculty.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (res.ok) {
+            toast.success('Faculty updated successfully!');
+            setIsEditModalOpen(false);
+            fetchData();
+        } else {
+             const err = await res.json();
+             toast.error(err.message || 'Failed to update');
+        }
+    } catch (error) {
+        toast.error('Network error');
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedFaculty) return;
+    
+    try {
+        const res = await fetch(`http://localhost:3007/api/admin/faculty/${selectedFaculty.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            toast.success('Faculty member deleted successfully!');
+            setIsDeleteModalOpen(false);
+            fetchData();
+        } else {
+            toast.error('Failed to delete');
+        }
+    } catch (error) {
+         toast.error('Network error');
     }
   };
 
   const getStatusBadge = (status: Faculty['status']) => {
     const styles = {
-      Active: 'bg-success/10 text-success border-success/20',
-      'On Leave': 'bg-warning/10 text-warning border-warning/20',
-      Resigned: 'bg-destructive/10 text-destructive border-destructive/20',
+      Active: 'bg-green-100 text-green-700 border-green-200',
+      'On Leave': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      Resigned: 'bg-red-100 text-red-700 border-red-200',
     };
     return styles[status] || styles.Active;
   };
 
-  const getDesignationBadge = (designation: Faculty['designation']) => {
-    const styles = {
-      Professor: 'bg-primary/10 text-primary border-primary/20',
-      'Associate Professor': 'bg-accent/10 text-accent border-accent/20',
-      'Assistant Professor': 'bg-info/10 text-info border-info/20',
-      Lecturer: 'bg-warning/10 text-warning border-warning/20',
-    };
-    return styles[designation] || styles.Lecturer;
-    return styles[designation] || styles.Lecturer;
-  };
+
 
   const handleDownloadTemplate = () => {
     const templateData = [
@@ -216,7 +298,6 @@ export default function ManageFaculty() {
         'Employee ID': 'EMP001',
         'Email': 'jane.smith@college.edu',
         'Phone': '9876543210',
-        'Designation': 'Assistant Professor',
         'Qualification': 'Ph.D in AI',
         'Specialization': 'Artificial Intelligence',
         'Experience': 5,
@@ -238,7 +319,7 @@ export default function ManageFaculty() {
     setIsUploading(true);
     const reader = new FileReader();
 
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
@@ -249,40 +330,50 @@ export default function ManageFaculty() {
         let addedCount = 0;
         let errorCount = 0;
 
-        data.forEach((row: any) => {
-          // Basic validation
-          if (!row['Full Name'] || !row['Employee ID'] || !row['Email']) {
-            errorCount++;
-            return;
-          }
+        // Process sequentially to avoid overwhelming server or just parallelize with Promise.all
+        // For better error handling, sequential or chunked is better.
+        for (const row of data as any[]) {
+             if (!row['Full Name'] || !row['Email']) {
+                 errorCount++;
+                 continue;
+             }
 
-          addFaculty({
-            name: row['Full Name'],
-            employeeId: row['Employee ID'],
-            email: row['Email'],
-            phone: row['Phone'] || '',
-            designation: row['Designation'] || 'Assistant Professor',
-            qualification: row['Qualification'] || '',
-            specialization: row['Specialization'] || '',
-            experience: Number(row['Experience']) || 0,
-            subjects: [],
-            sections: [],
-            status: 'Active',
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${row['Full Name']}`,
-            dateOfJoining: row['Date of Joining'] || new Date().toISOString().split('T')[0],
-            address: row['Address'] || '',
-            office: '',
-            education: []
-          });
-          addedCount++;
-        });
+             try {
+                 const res = await fetch('http://localhost:3007/api/admin/faculty', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name: row['Full Name'],
+                        employeeId: row['Employee ID'] || '',
+                        email: row['Email'],
+                        phone: row['Phone'] || '',
+                        qualification: row['Qualification'] || '',
+                        specialization: row['Specialization'] || '',
+                        experience: Number(row['Experience']) || 0,
+                        dateOfJoining: row['Date of Joining'] || new Date().toISOString().split('T')[0],
+                        address: row['Address'] || ''
+                    })
+                 });
 
-        setFaculty(getFaculty()); // Refresh list
-        toast.success(`Successfully added ${addedCount} faculty members. ${errorCount > 0 ? `${errorCount} entries failed due to missing data.` : ''}`);
+                 if (res.ok) {
+                     addedCount++;
+                 } else {
+                     errorCount++;
+                 }
+             } catch (err) {
+                 errorCount++;
+             }
+        }
+
+        fetchData(); // Refresh list
+        toast.success(`Upload complete. Added: ${addedCount}, Failed: ${errorCount}`);
         setIsBulkUploadModalOpen(false);
       } catch (error) {
         console.error("Error parsing file:", error);
-        toast.error("Failed to parse the file. Please check the format.");
+        toast.error("Failed to parse the file.");
       } finally {
         setIsUploading(false);
         if (fileInputRef.current) {
@@ -331,24 +422,24 @@ export default function ManageFaculty() {
           delay={0.1}
         />
         <StatCard
-          title="Professors"
-          value={stats.professors}
-          icon={GraduationCap}
-          variant="accent"
+          title="Active"
+          value={stats.active}
+          icon={UserCheck}
+          variant="success"
           delay={0.2}
         />
         <StatCard
-          title="Associate Professors"
-          value={stats.associates}
+          title="On Leave"
+          value={stats.onLeave}
           icon={BookOpen}
-          variant="success"
+          variant="warning"
           delay={0.3}
         />
         <StatCard
-          title="Assistant Professors"
-          value={stats.assistants}
-          icon={UserCheck}
-          variant="warning"
+          title="Resigned"
+          value={stats.resigned}
+          icon={GraduationCap}
+          variant="destructive"
           delay={0.4}
         />
       </div>
@@ -370,18 +461,7 @@ export default function ManageFaculty() {
               className="pl-10"
             />
           </div>
-          <Select value={designationFilter} onValueChange={setDesignationFilter}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Designation" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Designations</SelectItem>
-              <SelectItem value="Professor">Professor</SelectItem>
-              <SelectItem value="Associate Professor">Associate Professor</SelectItem>
-              <SelectItem value="Assistant Professor">Assistant Professor</SelectItem>
-              <SelectItem value="Lecturer">Lecturer</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Designation Filter Removed */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full md:w-40">
               <SelectValue placeholder="Status" />
@@ -412,7 +492,7 @@ export default function ManageFaculty() {
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left p-4 font-semibold text-sm">Faculty</th>
                 <th className="text-left p-4 font-semibold text-sm">Employee ID</th>
-                <th className="text-left p-4 font-semibold text-sm">Designation</th>
+                <th className="text-left p-4 font-semibold text-sm">Qualification</th>
                 <th className="text-left p-4 font-semibold text-sm">Specialization</th>
                 <th className="text-left p-4 font-semibold text-sm">Experience</th>
                 <th className="text-left p-4 font-semibold text-sm">Status</th>
@@ -444,11 +524,7 @@ export default function ManageFaculty() {
                       </div>
                     </td>
                     <td className="p-4 font-mono text-sm">{member.employeeId}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getDesignationBadge(member.designation)}`}>
-                        {member.designation}
-                      </span>
-                    </td>
+                    <td className="p-4 text-sm">{member.qualification}</td>
                     <td className="p-4 text-sm">{member.specialization}</td>
                     <td className="p-4 text-sm">{member.experience} years</td>
                     <td className="p-4">
@@ -580,23 +656,7 @@ export default function ManageFaculty() {
                 placeholder="+91 9876543210"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Designation</Label>
-              <Select 
-                value={formData.designation || 'Assistant Professor'} 
-                onValueChange={(v) => setFormData({ ...formData, designation: v as Faculty['designation'] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Professor">Professor</SelectItem>
-                  <SelectItem value="Associate Professor">Associate Professor</SelectItem>
-                  <SelectItem value="Assistant Professor">Assistant Professor</SelectItem>
-                  <SelectItem value="Lecturer">Lecturer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Designation Input Removed */}
             <div className="space-y-2">
               <Label htmlFor="qualification">Qualification</Label>
               <Input
@@ -605,6 +665,29 @@ export default function ManageFaculty() {
                 onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
                 placeholder="e.g., Ph.D in Computer Science"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="designation">Designation</Label>
+              <Input
+                id="designation"
+                value={formData.designation || ''}
+                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                placeholder="e.g., Assistant Professor"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Select 
+                  value={formData.department} 
+                  onValueChange={(v) => setFormData({...formData, department: v})}
+              >
+                  <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="Computer Science">Computer Science</SelectItem>
+                      <SelectItem value="Information Technology">Information Technology</SelectItem>
+                      <SelectItem value="Electronics">Electronics</SelectItem>
+                  </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="specialization">Specialization</Label>
@@ -691,9 +774,6 @@ export default function ManageFaculty() {
                 <div>
                   <h3 className="text-2xl font-bold">{selectedFaculty.name}</h3>
                   <p className="text-muted-foreground">{selectedFaculty.employeeId}</p>
-                  <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium border ${getDesignationBadge(selectedFaculty.designation)}`}>
-                    {selectedFaculty.designation}
-                  </span>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

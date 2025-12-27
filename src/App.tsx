@@ -63,6 +63,7 @@ import AdminDashboard from "@/pages/dashboards/AdminDashboard";
 import ManageStudents from "@/pages/admin/ManageStudents";
 import ManageFaculty from "@/pages/admin/ManageFaculty";
 import ManageTutors from "@/pages/admin/ManageTutors";
+import ManageSubjects from "@/pages/admin/ManageSubjects";
 import BatchesClasses from "@/pages/admin/BatchesClasses";
 import TimetableAdmin from "@/pages/admin/Timetable";
 import ApproveMarks from "@/pages/admin/ApproveMarks";
@@ -177,8 +178,9 @@ const App = () => {
                 <Route path="students" element={<ManageStudents />} />
                 <Route path="faculty" element={<ManageFaculty />} />
                 <Route path="tutors" element={<ManageTutors />} />
+                <Route path="subjects" element={<ManageSubjects />} />
                 <Route path="batches" element={<BatchesClasses />} />
-                <Route path="batches" element={<BatchesClasses />} />
+
                   <Route path="timetable" element={<Navigate to="/admin/timetable/students" replace />} />
                   <Route path="timetable/students" element={<TimetableAdmin view="students" />} />
                   <Route path="timetable/faculty" element={<TimetableAdmin view="faculty" />} />

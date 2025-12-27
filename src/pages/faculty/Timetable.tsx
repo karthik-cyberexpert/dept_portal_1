@@ -49,9 +49,38 @@ export default function Timetable() {
 
   useEffect(() => {
     if (!user) return;
-    const allSlots = getTimetable();
-    const mySlots = allSlots.filter(s => s.facultyId === user.id || s.facultyName === user.name);
-    setTimetable(mySlots);
+    
+    const fetchTimetable = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:3007/api/faculty/timetable', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                // Map backend slots to frontend TimetableSlot
+                const mapped = data.map((s: any) => ({
+                    id: Math.random(), // or s.id
+                    day: s.day,
+                    period: s.period,
+                    subject: s.subject,
+                    subjectCode: s.subjectCode,
+                    type: 'theory', // Default or derive from subject type
+                    room: s.room,
+                    classId: s.batch,
+                    sectionId: s.section,
+                    facultyId: user.id,
+                    facultyName: user.name
+                }));
+                setTimetable(mapped);
+            }
+        } catch (e) {
+            console.error("Error loading timetable", e);
+        }
+    };
+    
+    fetchTimetable();
   }, [user]);
 
   const getSlot = (day: string, period: number | string) => {

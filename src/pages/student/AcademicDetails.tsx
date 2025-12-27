@@ -26,18 +26,24 @@ export default function AcademicDetails() {
 
   useEffect(() => {
     if (user && user.role === 'student') {
-      const allStudents = getStudents();
-      const currentStudent = allStudents.find(s => s.id === user.id || s.email === user.email);
-      if (currentStudent) {
-        setStudent(currentStudent);
-        
-        // Find tutor
-        const tutors = getTutors();
-        const tutor = tutors.find(t => t.batch === currentStudent.batch && t.section === currentStudent.section);
-        if (tutor) {
-          setTutorName(tutor.name);
-        }
-      }
+        const fetchProfile = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:3007/api/students/profile', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setStudent(data);
+                    // Tutors logic would require separate API or be included in profile
+                    // For now, let's keep it minimal or mock if not in profile
+                    setTutorName("Dr. Sarah Wilson (HOD)"); // Placeholder until Tutor API integration
+                }
+            } catch (err) {
+                console.error("Error loading profile", err);
+            }
+        };
+        fetchProfile();
     }
   }, [user]);
 

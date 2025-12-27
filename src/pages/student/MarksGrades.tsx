@@ -50,76 +50,93 @@ export default function MarksGrades() {
     }
   }, [user]);
 
-  const loadMarks = () => {
+  const loadMarks = async () => {
     if (!user) return;
-    const rawMarks = getStudentMarks(user.id);
     
-    // Group marks by subject
-    const subjects: Record<string, any> = {};
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:3007/api/students/marks', {
+             headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+            console.error("Failed to load marks");
+            return;
+        }
+
+        const rawMarks = await res.json();
     
-    rawMarks.forEach(mark => {
-      if (!subjects[mark.subjectCode]) {
-        subjects[mark.subjectCode] = {
-            subject: mark.subjectCode, // Use code as name fallback
-            code: mark.subjectCode,
-            ia1: '-',
-            ia2: '-',
-            cia3: '-',
-            model: '-',
-            assignment: '-',
-            total: 0,
-            external: 'Pending'
-          };
-      }
-      
-      if (mark.examType === 'ia1') subjects[mark.subjectCode].ia1 = mark.marks;
-      if (mark.examType === 'ia2') subjects[mark.subjectCode].ia2 = mark.marks;
-      if (mark.examType === 'cia3') subjects[mark.subjectCode].cia3 = mark.marks;
-      if (mark.examType === 'model') subjects[mark.subjectCode].model = mark.marks;
-      if (mark.examType === 'assignment') subjects[mark.subjectCode].assignment = mark.marks;
-    });
+        // Group marks by subject
+        const subjects: Record<string, any> = {};
+        
+        rawMarks.forEach((mark: any) => {
+          if (!subjects[mark.subjectCode]) {
+            subjects[mark.subjectCode] = {
+                subject: mark.subject, 
+                code: mark.subjectCode,
+                ia1: '-',
+                ia2: '-',
+                cia3: '-',
+                model: '-',
+                assignment: '-',
+                total: 0,
+                external: 'Pending'
+              };
+          }
+          
+          if (mark.examType === 'ia1') subjects[mark.subjectCode].ia1 = mark.marks;
+          if (mark.examType === 'ia2') subjects[mark.subjectCode].ia2 = mark.marks;
+          if (mark.examType === 'cia3') subjects[mark.subjectCode].cia3 = mark.marks;
+          if (mark.examType === 'model') subjects[mark.subjectCode].model = mark.marks;
+          if (mark.examType === 'assignment') subjects[mark.subjectCode].assignment = mark.marks;
+        });
 
-    // Calculate totals and GPA for current semester
-    let totalObtained = 0;
-    let totalMax = 0;
-    
-    Object.values(subjects).forEach(sub => {
-      let subTotal = 0;
-      let count = 0;
-      if (typeof sub.ia1 === 'number') { subTotal += sub.ia1; count++; }
-      if (typeof sub.ia2 === 'number') { subTotal += sub.ia2; count++; }
-      if (typeof sub.cia3 === 'number') { subTotal += sub.cia3; count++; }
-      if (typeof sub.model === 'number') { subTotal += sub.model; count++; }
-      if (typeof sub.assignment === 'number') { subTotal += sub.assignment; count++; }
-      
-      sub.total = subTotal; 
-      
-      // Calculate contribution to GPA
-      totalObtained += subTotal;
-      totalMax += 300; // Assuming 3 assessments of 100 each for simplicity or similar logic
+        // Calculate totals and GPA for current semester
+        let totalObtained = 0;
+        let totalMax = 0;
+        
+        Object.values(subjects).forEach(sub => {
+          let subTotal = 0;
+          if (typeof sub.ia1 === 'number') subTotal += sub.ia1; // Max 50
+          if (typeof sub.ia2 === 'number') subTotal += sub.ia2; // Max 50
+          if (typeof sub.cia3 === 'number') subTotal += sub.cia3;
+          if (typeof sub.model === 'number') subTotal += sub.model; // Max 100
+          if (typeof sub.assignment === 'number') subTotal += sub.assignment; // Max 1?
+          
+          // Note: Logic for 'Total' depends on weightage. 
+          // Assuming simple sum for display or logic: 
+          // Realistically: Internal = (IA1+IA2+Model)/X
+          // Displaying RAW sum for now
+          sub.total = subTotal; 
+          
+          // Calculate contribution to GPA (Mock logic)
+          totalObtained += subTotal;
+          totalMax += 200; // Approx max
 
-      // Simple grade logic based on percentage of internal marks available
-      const percentage = (subTotal / 300) * 100;
-      if (percentage >= 90) sub.external = 'O';
-      else if (percentage >= 80) sub.external = 'A+';
-      else if (percentage >= 70) sub.external = 'A';
-      else if (percentage >= 60) sub.external = 'B+';
-      else if (percentage >= 50) sub.external = 'B';
-      else if (percentage > 0) sub.external = 'C';
-      else sub.external = 'Pending';
-    });
+          // Simple grade logic
+          const percentage = (subTotal / 200) * 100; // Very rough
+          if (percentage >= 90) sub.external = 'O';
+          else if (percentage >= 80) sub.external = 'A+';
+          else if (percentage >= 70) sub.external = 'A';
+          else if (percentage >= 60) sub.external = 'B+';
+          else if (percentage >= 50) sub.external = 'B';
+          else if (percentage > 0) sub.external = 'C';
+          else sub.external = 'Pending';
+        });
 
-    const currentGpa = totalMax > 0 ? (totalObtained / totalMax) * 10 : 0;
+        const currentGpa = totalMax > 0 ? (totalObtained / totalMax) * 10 : 0;
 
-    setMarksData(Object.values(subjects));
-    setStats({
-        gpa: Number(currentGpa.toFixed(2)),
-        rank: "N/A", // Calculation requires comparing with all students in the batch
-        totalPoints: Number(currentGpa.toFixed(2))
-    });
+        setMarksData(Object.values(subjects));
+        setStats({
+            gpa: Number(currentGpa.toFixed(2)),
+            rank: "N/A", 
+            totalPoints: Number(currentGpa.toFixed(2))
+        });
 
-    // Clear previous grades as they were dummy
-    setPreviousGrades([]);
+        setPreviousGrades([]);
+    } catch(e) {
+        console.error("Error fetching marks", e);
+    }
   };
 
 

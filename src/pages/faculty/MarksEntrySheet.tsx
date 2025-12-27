@@ -50,34 +50,38 @@ export default function MarksEntrySheet() {
     }
   }, [section, subject, exam]);
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    const allStudents = getStudents();
-    const allMarks = getMarks();
-
-    // Filter students by section
-    const filteredStudents = allStudents.filter(s => s.section === section);
-
-    const mappedStudents = filteredStudents.map(student => {
-      const existingMark = allMarks.find(m => 
-        m.studentId === student.id && 
-        m.subjectCode === subject && 
-        m.examType === exam
-      );
-
-      const breakdown = existingMark?.breakdown || {};
-
-      return {
-        ...student,
-        currentMarks: existingMark ? existingMark.marks : null,
-        breakdown: breakdown,
-        markStatus: existingMark ? 'saved' : 'pending',
-        absent: breakdown.absent === true
-      } as StudentWithMarks;
-    });
-
-    setStudents(mappedStudents);
-    setLoading(false);
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3007/api/faculty/marks?sectionId=${section}&subjectCode=${subject}&examType=${exam}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            // Map keys
+            const mapped = data.map((d: any) => ({
+                id: d.id,
+                name: d.name,
+                rollNumber: d.rollNumber,
+                email: d.email,
+                section: section, // inferred
+                currentMarks: d.currentMarks,
+                breakdown: d.breakdown || {},
+                markStatus: d.currentMarks !== null ? 'saved' : 'pending',
+                absent: d.breakdown?.absent === true
+            }));
+            setStudents(mapped);
+        } else {
+             toast.error("Failed to fetch marks data");
+        }
+    } catch (error) {
+        console.error("Fetch Marks Error", error);
+        toast.error("Error loading data");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleDetailedMarkChange = (studentId: string, part: string, idx: number, value: string, max: number) => {
@@ -154,28 +158,47 @@ export default function MarksEntrySheet() {
       }));
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     const changed = students.filter(s => s.markStatus === 'changed');
     if (changed.length === 0) {
       toast.info('No changes to save');
       return;
     }
 
-    changed.forEach(student => {
-        addOrUpdateMark({
-          studentId: student.id,
-          subjectCode: subject,
-          examType: exam,
-          marks: student.absent ? 0 : (student.currentMarks || 0),
-          maxMarks: exam === 'model' ? 100 : exam === 'assignment' ? 1 : 50,
-          date: new Date().toISOString(),
-          status: 'submitted',
-          breakdown: student.breakdown
-        });
-    });
+    try {
+        const payload = {
+            sectionId: section,
+            subjectCode: subject,
+            examType: exam,
+            marks: changed.map(s => ({
+                studentId: s.id,
+                marks: s.absent ? 0 : (s.currentMarks || 0),
+                maxMarks: exam === 'model' ? 100 : exam === 'assignment' ? 1 : 50,
+                breakdown: { ...s.breakdown, absent: s.absent }
+            }))
+        };
 
-    toast.success(`Saved marks for ${changed.length} students`);
-    loadData();
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:3007/api/faculty/marks', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}` 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            toast.success(`Saved marks for ${changed.length} students`);
+            loadData(); // Reload to refresh status
+        } else {
+            const err = await res.json();
+            toast.error(err.message || "Failed to save marks");
+        }
+    } catch (e) {
+        console.error("Save Error", e);
+        toast.error("Error occurred while saving");
+    }
   };
 
   // Generate headers based on exam type

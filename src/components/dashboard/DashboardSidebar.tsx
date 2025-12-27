@@ -118,7 +118,8 @@ const adminLinks: SidebarLink[] = [
     children: [
       { label: 'Students', icon: GraduationCap, path: '/admin/students' },
       { label: 'Faculty', icon: Users, path: '/admin/faculty' },
-      { label: 'Tutors', icon: Users, path: '/admin/tutors' }
+      { label: 'Tutors', icon: Users, path: '/admin/tutors' },
+      { label: 'Subjects', icon: BookOpen, path: '/admin/subjects' }
     ]
   },
   { label: 'Batches & Classes', icon: Users, path: '/admin/batches' },

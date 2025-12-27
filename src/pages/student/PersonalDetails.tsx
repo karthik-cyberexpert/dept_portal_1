@@ -31,11 +31,23 @@ export default function PersonalDetails() {
 
   useEffect(() => {
     if (user && user.role === 'student') {
-      const allStudents = getStudents();
-      const currentStudent = allStudents.find(s => s.id === user.id || s.email === user.email);
-      if (currentStudent) {
-        setStudent(currentStudent);
-      }
+        const fetchProfile = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:3007/api/students/profile', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setStudent(data);
+                } else {
+                    console.error("Failed to load profile");
+                }
+            } catch (err) {
+                console.error("Error loading profile", err);
+            }
+        };
+        fetchProfile();
     }
   }, [user]);
 

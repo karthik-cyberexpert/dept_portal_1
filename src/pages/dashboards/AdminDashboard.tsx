@@ -16,15 +16,10 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+// Remvoing getStudents etc as we move to API
 import { 
   getData, 
-  getStudents, 
-  getFaculty, 
-  getMarks, 
-  getLeaveRequests,
-  getCirculars,
-  Student, 
-  Faculty, 
   MarkEntry,
   LEAVE_KEY
 } from '@/lib/data-store';
@@ -56,117 +51,50 @@ export default function AdminDashboard() {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
 
   useEffect(() => {
-    const studentsArr = getStudents();
-    const facultyArr = getFaculty();
-    const marksArr = getMarks();
-    const leavesArr = getLeaveRequests();
-    const circularsArr = getCirculars();
-    
-    // Calculate Stats
-    setStats({
-      students: studentsArr.length,
-      faculty: facultyArr.length,
-      pendingLeaves: leavesArr.filter((l: any) => l.status === 'pending').length,
-      pendingMarks: marksArr.filter((m: MarkEntry) => m.status === 'verified').length
-    });
-
-    // Calculate Department Stats (Real Cumulative Growth)
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const now = new Date();
-    const last6Months = Array.from({length: 6}, (_, i) => {
-        const d = new Date();
-        d.setMonth(now.getMonth() - 5 + i);
-        return d;
-    });
-
-    const statsData = last6Months.map(date => {
-        const monthYear = `${months[date.getMonth()]}`;
-        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3007/api/admin/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         
-        return {
-            month: monthYear,
-            students: studentsArr.filter(s => new Date(s.createdAt) <= endOfMonth).length,
-            faculty: facultyArr.filter(f => new Date(f.createdAt) <= endOfMonth).length
-        };
-    });
-    setDepartmentStats(statsData);
-
-    // Calculate Batch Distribution
-    const batchCounts = studentsArr.reduce((acc: any, student) => {
-        acc[student.batch] = (acc[student.batch] || 0) + 1;
-        return acc;
-    }, {});
-
-    const batchColors = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))'];
-    const batchDist = Object.keys(batchCounts).map((batch, index) => ({
-        name: `Batch ${batch}`,
-        value: batchCounts[batch],
-        color: batchColors[index % batchColors.length]
-    }));
-    setBatchDistribution(batchDist);
-
-    // Calculate Marks Approval Queue
-    const pending = marksArr.filter(m => m.status === 'verified');
-    const groupedPending = pending.reduce((acc: any, mark) => {
-        const key = `${mark.subjectCode}-${mark.examType}`; 
-        if (!acc[key]) {
-            acc[key] = {
-                exam: mark.examType.toUpperCase(),
-                subject: mark.subjectCode,
-                count: 0,
-                section: 'Unknown' 
-            };
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+          
+          // Mocking graphs for now until we build specific complex queries
+           setDepartmentStats([
+            { month: 'Jan', students: 120, faculty: 10 },
+            { month: 'Feb', students: 135, faculty: 12 },
+            { month: 'Mar', students: 150, faculty: 15 },
+            { month: 'Apr', students: 180, faculty: 18 },
+            { month: 'May', students: 220, faculty: 20 },
+            { month: 'Jun', students: 250, faculty: 25 },
+           ]);
+           setBatchDistribution([
+            { name: 'Batch 2021', value: 40, fill: 'hsl(var(--primary))' },
+            { name: 'Batch 2022', value: 55, fill: 'hsl(var(--accent))' },
+            { name: 'Batch 2023', value: 70, fill: 'hsl(var(--success))' },
+            { name: 'Batch 2024', value: 85, fill: 'hsl(var(--warning))' },
+           ]);
+           setRecentActivities([
+            { id: 1, type: 'Registration', message: 'New Student Registered', time: '2 mins ago', icon: Users, color: 'text-blue-500', bg: 'bg-blue-100' },
+            { id: 2, type: 'Leave', message: 'Leave Request Approved', time: '15 mins ago', icon: Clock, color: 'text-green-500', bg: 'bg-green-100' },
+            { id: 3, type: 'Academic', message: 'Marksheet Generated', time: '1 hour ago', icon: GraduationCap, color: 'text-purple-500', bg: 'bg-purple-100' },
+           ]);
         }
-        acc[key].count++;
-        const student = studentsArr.find(s => s.id === mark.studentId);
-        if (student) acc[key].section = student.section;
-        return acc;
-    }, {});
-    setMarksApprovalQueue(Object.values(groupedPending));
+      } catch (error) {
+        console.error('Failed to fetch admin stats:', error);
+      }
+    };
 
-    // Recent Activities (Combined Source)
-    const activities = [
-        ...studentsArr.map(s => ({ type: 'student', action: 'New Student Joined', target: `${s.name} • ${s.batch}`, time: s.createdAt })),
-        ...facultyArr.map(f => ({ type: 'faculty', action: 'New Faculty Joined', target: `${f.name} • ${f.designation}`, time: f.createdAt })),
-        ...circularsArr.map(c => ({ type: 'circular', action: 'Notice Posted', target: c.title, time: c.createdAt })),
-        ...leavesArr.filter(l => l.status !== 'pending').map(l => ({ 
-            type: 'leave', 
-            action: `Leave ${l.status}`, 
-            target: `${l.userName} (${l.type})`, 
-            time: l.processedDate || l.createdAt 
-        })),
-    ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
-    
-    const formattedActivities = activities.map(a => {
-        const dateString = new Date(a.time).toLocaleDateString();
-        // Simple relative time approximation
-        const diffMs = now.getTime() - new Date(a.time).getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMins / 60) ;
-        const diffDays = Math.floor(diffHours / 24);
-        
-        let relativeTime = dateString;
-        if (diffDays > 0) relativeTime = `${diffDays}d ago`;
-        else if (diffHours > 0) relativeTime = `${diffHours}h ago`;
-        else if (diffMins > 0) relativeTime = `${diffMins}m ago`;
-        else relativeTime = 'Just now';
-
-        return {
-            ...a,
-            time: relativeTime
-        };
-    });
-    setRecentActivities(formattedActivities);
-
+    fetchStats();
   }, []);
 
   // Calculate Semester Progress based on actual active batch
   const calculateSemesterProgress = () => {
-    const students = getStudents();
-    
-    // Determine the most common batch or use the most recent batch
-    const batches = [...new Set(students.map(s => s.batch))];
-    const currentBatch = batches.length > 0 ? batches[0] : 'Active Batch';
+    // Mocking for now as we transition to API
+    const currentBatch = '2023-2027';
     
     // Extract start year from batch name (assuming format like '2021-2025')
     const startYear = parseInt(currentBatch.split('-')[0]) || new Date().getFullYear() - 1;
@@ -454,7 +382,7 @@ export default function AdminDashboard() {
         className="glass-card rounded-2xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Semester Progress ({getStudents().length > 0 ? getStudents()[0].batch : 'Active Batch'})</h3>
+          <h3 className="text-lg font-semibold">Semester Progress (Active Batch)</h3>
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/settings')}>Configure Dates</Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">

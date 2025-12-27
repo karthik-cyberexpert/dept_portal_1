@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, AuthState, getStoredAuth, login as authLogin, logout as authLogout, getRoleDashboardPath } from '@/lib/auth';
+import { User, AuthState, getStoredAuth, setStoredAuth, clearStoredAuth, getRoleDashboardPath } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
@@ -27,23 +27,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const result = authLogin(email, password);
-    
-    if (result.success && result.user) {
-      setAuthState({ user: result.user, isAuthenticated: true });
-      const dashboardPath = getRoleDashboardPath(result.user.role);
-      navigate(dashboardPath);
+    try {
+      const response = await fetch('http://localhost:3007/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStoredAuth({ user: data.user, isAuthenticated: true });
+        setAuthState({ user: data.user, isAuthenticated: true });
+        localStorage.setItem('token', data.token); // Store JWT
+        
+        const dashboardPath = getRoleDashboardPath(data.user.role);
+        navigate(dashboardPath);
+        setIsLoading(false);
+        return { success: true };
+      } else {
+        setIsLoading(false);
+        return { success: false, error: data.message || 'Login failed' };
+      }
+    } catch (error) {
+      console.error('Login API error:', error);
+      setIsLoading(false);
+      return { success: false, error: 'Network error. Please try again.' };
     }
-    
-    setIsLoading(false);
-    return { success: result.success, error: result.error };
   };
 
   const logout = () => {
-    authLogout();
+    clearStoredAuth();
+    localStorage.removeItem('token');
     setAuthState({ user: null, isAuthenticated: false });
     navigate('/login');
   };

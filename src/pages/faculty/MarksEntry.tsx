@@ -27,19 +27,52 @@ export default function MarksEntrySelection() {
   const [selectedExam, setSelectedExam] = useState<'ia1' | 'ia2' | 'ia3' | 'model' | 'assignment'>('ia1');
   const [selectedSubject, setSelectedSubject] = useState(''); 
   const [selectedSection, setSelectedSection] = useState('');
-  const [faculty, setFaculty] = useState<Faculty | null>(null);
+  
+  // Data State
+  const [allocations, setAllocations] = useState<any[]>([]);
+  const [availableSections, setAvailableSections] = useState<any[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<any[]>([]);
 
   useEffect(() => {
-    if (user) {
-      const allFaculty = getFaculty();
-      const current = allFaculty.find(f => f.id === user.id || f.email === user.email);
-      if (current) {
-        setFaculty(current);
-        if (current.subjects.length > 0) setSelectedSubject(current.subjects[0]);
-        if (current.sections.length > 0) setSelectedSection(current.sections[0]);
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+      try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('http://localhost:3007/api/faculty/classes', {
+              headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+              const data = await res.json();
+              setAllocations(data);
+              
+              // Extract Unique Sections
+              const sections = Array.from(new Set(data.map((a: any) => JSON.stringify({id: a.sectionId, name: a.sectionName, batch: a.batchName}))))
+                .map((s: any) => JSON.parse(s));
+              setAvailableSections(sections);
+
+              if (sections.length > 0) setSelectedSection(sections[0].id.toString());
+          }
+      } catch (error) {
+          console.error("Failed to fetch classes", error);
+          toast.error("Failed to load your classes");
       }
-    }
-  }, [user]);
+  };
+
+  // Filter subjects based on selected section
+  useEffect(() => {
+      if (selectedSection) {
+          const sectionId = parseInt(selectedSection);
+          const relevant = allocations.filter(a => a.sectionId === sectionId);
+          const subjects = Array.from(new Set(relevant.map(a => a.subjectCode)));
+          setAvailableSubjects(subjects);
+          if (subjects.length > 0) setSelectedSubject(subjects[0] as string);
+      } else {
+          setAvailableSubjects([]);
+          setSelectedSubject('');
+      }
+  }, [selectedSection, allocations]);
 
   const handleProceed = () => {
       if (!selectedSection || !selectedSubject || !selectedExam) {
@@ -78,15 +111,17 @@ export default function MarksEntrySelection() {
                     
                     <div className="space-y-2">
                         <label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
-                            <School className="w-4 h-4" /> Batch Selection
+                            <School className="w-4 h-4" /> Batch / Section
                         </label>
                         <Select value={selectedSection} onValueChange={setSelectedSection}>
                             <SelectTrigger className="rounded-xl h-12 bg-white/5 border-white/10 text-lg">
-                                <SelectValue placeholder="Select Batch" />
+                                <SelectValue placeholder="Select Section" />
                             </SelectTrigger>
                             <SelectContent>
-                                {faculty?.sections.map(sec => (
-                                    <SelectItem key={sec} value={sec}>Section {sec}</SelectItem>
+                                {availableSections.map((sec: any) => (
+                                    <SelectItem key={sec.id} value={sec.id.toString()}>
+                                        {sec.batch} - {sec.name}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -101,8 +136,8 @@ export default function MarksEntrySelection() {
                                 <SelectValue placeholder="Select Subject" />
                             </SelectTrigger>
                             <SelectContent>
-                                {faculty?.subjects.map(subCode => (
-                                    <SelectItem key={subCode} value={subCode}>{subCode}</SelectItem>
+                                {availableSubjects.map((sub: any) => (
+                                    <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
